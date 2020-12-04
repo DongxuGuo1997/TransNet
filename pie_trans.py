@@ -243,7 +243,8 @@ class pie_trans_dataset():
                     samples[key] = {}
                     samples[key]["source"] = "PIE"
                     samples[key]["old_id"] = old_id
-                    samples[key]['video_number'] = vid_id
+                    samples[key]['set_number'] = sid
+                    samples[key]['video_number'] = vid
                     samples[key]['frame'] = frames[i::-step]
                     samples[key]['frame'].reverse()
                     samples[key]['bbox'] = bbox[i::-step]
