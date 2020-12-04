@@ -260,3 +260,62 @@ class jaad_trans_dataset():
             print(f"Extract {len(samples.keys())} {mode} sample frames from JAAD {self.name} set")
 
         return samples
+
+
+    def extract_trans_history(self, mode = "GO", fps = 30):
+        dataset = self.dataset
+        assert mode in ["GO", "STOP"], "Transition type should be STOP or GO"
+        ids = list(dataset.keys())
+        samples = {}
+        j = 0
+        step = 30 // fps
+        assert isinstance(step,int)
+        for idx in ids:
+            vid_id = copy.deepcopy(dataset[idx]['video_number'])
+            frames = copy.deepcopy(dataset[idx]['frames'])
+            bbox = copy.deepcopy(dataset[idx]['bbox'])
+            action = copy.deepcopy(dataset[idx]['action'])
+            cross = copy.deepcopy(dataset[idx]['cross'])
+            looking = copy.deepcopy(dataset[idx]['looking'])
+            gesture = copy.deepcopy(dataset[idx]['gesture'])
+            next_transition = copy.deepcopy(dataset[idx]["next_transition"])
+            attributes = copy.deepcopy(dataset[idx]["attributes"])
+
+            for i in range(len(frames)):
+                key = None
+                old_id = None
+                d1 = min(i, 5)
+                d2 = min(len(frames) - i - 1, 5)
+                if mode == "GO":
+                    if next_transition[i] == 0 and action[i] == 1 and action[i - d1] == 0 and action[i + d2] == 1:
+                        j += 1
+                        new_id = "{:04d}".format(j) + "_" + self.name
+                        key = "JG_" + new_id
+                        old_id = f'{idx}/{vid_id}/' + '{:03d}'.format(frames[i])
+                if mode == "STOP":
+                    if next_transition[i] == 0 and action[i] == 0 and action[i - d1] == 1 and action[i + d2] == 0:
+                        j += 1
+                        new_id = "{:04d}".format(j) + "_" + self.name
+                        key = "JS_" + new_id
+                        old_id = f'{idx}/{vid_id}/' + '{:03d}'.format(frames[i])
+
+                if key is not None:
+                    samples[key] = {}
+                    samples[key]["source"] = "JAAD"
+                    samples[key]["old_id"] = old_id
+                    samples[key]['video_number'] = vid_id
+                    samples[key]['frame'] = frames[i::-step]
+                    samples[key]['frame'].reverse()
+                    samples[key]['bbox'] = bbox[i::-step]
+                    samples[key]['bbox'].reverse()
+                    samples[key]['action'] = action[i::-step]
+                    samples[key]['action'].reverse()
+                    samples[key]['cross'] = cross[i::-step]
+                    samples[key]['cross'].reverse()
+                    samples[key]['looking'] = looking[i::-step]
+                    samples[key]['looking'].reverse()
+                    samples[key]['gesture'] = gesture[i::-step]
+                    samples[key]['gesture'].reverse()
+                    samples[key]["attributes"] = attributes
+                
+        return samples
