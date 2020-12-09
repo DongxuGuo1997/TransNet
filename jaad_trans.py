@@ -5,10 +5,12 @@ import copy
 
 
 # --------------------------------------------------------------------
-def get_split_vids(split_vids_path, image_set, subset='default'):
+def get_split_vids(split_vids_path, image_set, subset='default') -> list:
     """
         Returns a list of video ids for a given data split
-        :param image_set: Data split, train, test, val
+        :param:  split_vids_path: path of JAAD split
+                image_set: Data split, train, test, val
+                subset: "all", "default" or "high_resolution"
         :return: The list of video ids
         """
     assert image_set in ["train", "test", "val", "all"]
@@ -40,7 +42,12 @@ def get_pedb_ids_jaad(annotations, vid):
 
 
 def get_pedb_info_jaad(annotations, vid):
-    # get pedb information,i.e. frames,bbox,occlusion, actions(walking or not) and other attributes
+    """
+    Get pedb information,i.e. frames,bbox,occlusion, actions(walking or not),cross behavior.
+    :param: annotations: JAAD annotations in dictionary form
+            vid : single video id (str)
+    :return: information of all pedestrians in one video
+    """
     ids = get_pedb_ids_jaad(annotations, vid)
     dataset = annotations
     pedb_info = {}
@@ -51,20 +58,11 @@ def get_pedb_info_jaad(annotations, vid):
         pedb_info[idx]['occlusion'] = []
         pedb_info[idx]['action'] = []
         pedb_info[idx]['cross'] = []
-        pedb_info[idx]['looking'] = []
-        pedb_info[idx]['gesture'] = []
-        pedb_info[idx]['attributes'] = []
-
         frames = copy.deepcopy(dataset[vid]['ped_annotations'][idx]['frames'])
         bbox = copy.deepcopy(dataset[vid]['ped_annotations'][idx]['bbox'])
         occlusion = copy.deepcopy(dataset[vid]['ped_annotations'][idx]['occlusion'])
         action = copy.deepcopy(dataset[vid]['ped_annotations'][idx]['behavior']['action'])
-        looking = copy.deepcopy(dataset[vid]['ped_annotations'][idx]['behavior']['look'])
         cross = copy.deepcopy(dataset[vid]['ped_annotations'][idx]['behavior']['cross'])
-        hand_gesture = copy.deepcopy(dataset[vid]['ped_annotations'][idx]['behavior']['hand_gesture'])
-        nod = copy.deepcopy(dataset[vid]['ped_annotations'][idx]['behavior']['nod'])
-        attributes = copy.deepcopy(dataset[vid]['ped_annotations'][idx]["attributes"])
-
         for i in range(len(frames)):
             if action[i] in [0, 1]:  # sanity check if behavior label exists
                 pedb_info[idx]['action'].append(action[i])
@@ -72,31 +70,25 @@ def get_pedb_info_jaad(annotations, vid):
                 pedb_info[idx]['bbox'].append(bbox[i])
                 pedb_info[idx]['occlusion'].append(occlusion[i])
                 pedb_info[idx]['cross'].append(cross[i])
-                pedb_info[idx]['looking'].append(looking[i])
-                if nod[i] == 1:
-                    pedb_info[idx]["gesture"].append(4)
-                else:
-                    if hand_gesture[i] == 4:
-                        pedb_info[idx]["gesture"].append(5)
-                    else:
-                        pedb_info[idx]["gesture"].append(hand_gesture[i])
-
-        pedb_info[idx]["attributes"] = attributes
 
     return pedb_info
 
 
 def filter_None(x):
-    # small help function to filter None in list
+    # Small help function to filter None in list
     if x is None:
         return False
     else:
         return True
 
 
-def pedb_info_clean_jaad(annotations, vid):
+def pedb_info_clean_jaad(annotations, vid) -> dict:
     """
      Remove all frames has occlusion tag = 2 (fully occluded)
+         Get pedb information,i.e. frames,bbox,occlusion, actions(walking or not),cross behavior.
+    :param: annotations: JAAD annotations in dictionary form
+            vid : single video id (str)
+    :return: cleaned information of all pedestrians in one video
     """
     pedb_info = get_pedb_info_jaad(annotations, vid)
     pids = list(pedb_info.keys())
@@ -111,22 +103,17 @@ def pedb_info_clean_jaad(annotations, vid):
             pedb_info[idx]['action'][full_occ[i]] = None
             pedb_info[idx]['occlusion'][full_occ[i]] = None
             pedb_info[idx]['cross'][full_occ[i]] = None
-            pedb_info[idx]['looking'][full_occ[i]] = None
-            pedb_info[idx]['gesture'][full_occ[i]] = None
-
         # filter all None values
         pedb_info[idx]['frames'] = list(filter(filter_None, pedb_info[idx]['frames']))
         pedb_info[idx]['bbox'] = list(filter(filter_None, pedb_info[idx]['bbox']))
         pedb_info[idx]['action'] = list(filter(filter_None, pedb_info[idx]['action']))
         pedb_info[idx]['occlusion'] = list(filter(filter_None, pedb_info[idx]['occlusion']))
         pedb_info[idx]['cross'] = list(filter(filter_None, pedb_info[idx]['cross']))
-        pedb_info[idx]['looking'] = list(filter(filter_None, pedb_info[idx]['looking']))
-        pedb_info[idx]['gesture'] = list(filter(filter_None, pedb_info[idx]['gesture']))
 
     return pedb_info
 
 
-def add_transition_labels_jaad(dataset, verbose=False):
+def add_transition_labels_jaad(dataset, verbose=False) -> None:
     """
     Add stop & go transition labels for every frame
     """
@@ -171,7 +158,7 @@ def add_transition_labels_jaad(dataset, verbose=False):
     return None
 
 
-def build_pedb_dataset_jaad(jaad_anns_path, split_vids_path, image_set="all", verbose=False):
+def build_pedb_dataset_jaad(jaad_anns_path, split_vids_path, image_set="all", verbose=False) -> dict:
     """
     Build pedestrian dataset from jaad annotations
     """
@@ -189,16 +176,12 @@ def build_pedb_dataset_jaad(jaad_anns_path, split_vids_path, image_set="all", ve
             pedb_dataset[idx]['action'] = pedb_info[idx]['action']
             pedb_dataset[idx]['occlusion'] = pedb_info[idx]['occlusion']
             pedb_dataset[idx]["cross"] = pedb_info[idx]["cross"]
-            pedb_dataset[idx]["gesture"] = pedb_info[idx]["gesture"]
-            pedb_dataset[idx]["looking"] = pedb_info[idx]["looking"]
-            pedb_dataset[idx]["attributes"] = pedb_info[idx]["attributes"]
-
     add_transition_labels_jaad(pedb_dataset, verbose)
 
     return pedb_dataset
 
 
-class jaad_trans_dataset():
+class JaadTransDataset:
     """
      dataset class for transition-related pedestrian samples in JAAD
     """
@@ -209,7 +192,6 @@ class jaad_trans_dataset():
         self.name = image_set
 
     def extract_trans_frame(self, mode="GO", verbose=False):
-
         dataset = self.dataset
         assert mode in ["GO", "STOP"], "Transition type should be STOP or GO"
         ids = list(dataset.keys())
@@ -221,11 +203,7 @@ class jaad_trans_dataset():
             bbox = copy.deepcopy(dataset[idx]['bbox'])
             action = copy.deepcopy(dataset[idx]['action'])
             cross = copy.deepcopy(dataset[idx]['cross'])
-            looking = copy.deepcopy(dataset[idx]['looking'])
-            gesture = copy.deepcopy(dataset[idx]['gesture'])
             next_transition = copy.deepcopy(dataset[idx]["next_transition"])
-            attributes = copy.deepcopy(dataset[idx]["attributes"])
-
             for i in range(len(frames)):
                 key = None
                 old_id = None
@@ -243,7 +221,6 @@ class jaad_trans_dataset():
                         new_id = "{:04d}".format(j) + "_" + self.name
                         key = "JS_" + new_id
                         old_id = f'{idx}/{vid_id}/' + '{:03d}'.format(frames[i])
-
                 if key is not None:
                     samples[key] = {}
                     samples[key]["source"] = "JAAD"
@@ -253,34 +230,26 @@ class jaad_trans_dataset():
                     samples[key]['bbox'] = bbox[i]
                     samples[key]['action'] = action[i]
                     samples[key]['cross'] = cross[i]
-                    samples[key]['looking'] = looking[i]
-                    samples[key]['gesture'] = gesture[i]
-                    samples[key]["attributes"] = attributes
         if verbose:
             print(f"Extract {len(samples.keys())} {mode} sample frames from JAAD {self.name} set")
 
         return samples
 
-
-    def extract_trans_history(self, mode = "GO", fps = 30):
+    def extract_trans_history(self, mode="GO", fps=30):
         dataset = self.dataset
         assert mode in ["GO", "STOP"], "Transition type should be STOP or GO"
         ids = list(dataset.keys())
         samples = {}
         j = 0
         step = 30 // fps
-        assert isinstance(step,int)
+        assert isinstance(step, int)
         for idx in ids:
             vid_id = copy.deepcopy(dataset[idx]['video_number'])
             frames = copy.deepcopy(dataset[idx]['frames'])
             bbox = copy.deepcopy(dataset[idx]['bbox'])
             action = copy.deepcopy(dataset[idx]['action'])
             cross = copy.deepcopy(dataset[idx]['cross'])
-            looking = copy.deepcopy(dataset[idx]['looking'])
-            gesture = copy.deepcopy(dataset[idx]['gesture'])
             next_transition = copy.deepcopy(dataset[idx]["next_transition"])
-            attributes = copy.deepcopy(dataset[idx]["attributes"])
-
             for i in range(len(frames)):
                 key = None
                 old_id = None
@@ -298,7 +267,6 @@ class jaad_trans_dataset():
                         new_id = "{:04d}".format(j) + "_" + self.name
                         key = "JS_" + new_id
                         old_id = f'{idx}/{vid_id}/' + '{:03d}'.format(frames[i])
-
                 if key is not None:
                     samples[key] = {}
                     samples[key]["source"] = "JAAD"
@@ -312,10 +280,5 @@ class jaad_trans_dataset():
                     samples[key]['action'].reverse()
                     samples[key]['cross'] = cross[i::-step]
                     samples[key]['cross'].reverse()
-                    samples[key]['looking'] = looking[i::-step]
-                    samples[key]['looking'].reverse()
-                    samples[key]['gesture'] = gesture[i::-step]
-                    samples[key]['gesture'].reverse()
-                    samples[key]["attributes"] = attributes
-                
+
         return samples

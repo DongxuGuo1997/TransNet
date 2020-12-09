@@ -1,10 +1,9 @@
 import pickle
-
 import numpy as np
 import copy
 
 
-def get_ped_ids_pie(annotations, image_set="all"):
+def get_ped_ids_pie(annotations, image_set="all") -> list:
     """
     Returns all pedestrian ids
     :return: A list of pedestrian ids
@@ -23,8 +22,14 @@ def get_ped_ids_pie(annotations, image_set="all"):
     return pids
 
 
-def get_ped_info_pie(annotations, image_set="all"):
-    # get ped information,i.e. frames,bbox,occlusion, actions(walking or not)
+def get_ped_info_pie(annotations, image_set="all") -> dict:
+    """
+        Get pedestrians' information,i.e. frames,bbox,occlusion, actions(walking or not),cross behavior.
+        :param: annotations: PIE annotations in dictionary form
+                image_set : str: train,val.test set split of PIE
+        :return: information of all pedestrians in one video
+    """
+    assert image_set in ['train', 'test', 'val', "all"], "Image set should be train, test or val"
     pids = get_ped_ids_pie(annotations, image_set)
     dataset = annotations
     ped_info = {}
@@ -39,10 +44,7 @@ def get_ped_info_pie(annotations, image_set="all"):
         ped_info[idx]['bbox'] = copy.deepcopy(dataset[sid][vid]['ped_annotations'][idx]['bbox'])
         ped_info[idx]['occlusion'] = copy.deepcopy(dataset[sid][vid]['ped_annotations'][idx]['occlusion'])
         ped_info[idx]['action'] = copy.deepcopy(dataset[sid][vid]['ped_annotations'][idx]['behavior']['action'])
-        ped_info[idx]['looking'] = copy.deepcopy(dataset[sid][vid]['ped_annotations'][idx]['behavior']['look'])
-        ped_info[idx]['gesture'] = copy.deepcopy(dataset[sid][vid]['ped_annotations'][idx]['behavior']['gesture'])
         ped_info[idx]['cross'] = copy.deepcopy(dataset[sid][vid]['ped_annotations'][idx]['behavior']['cross'])
-        ped_info[idx]['attributes'] = copy.deepcopy(dataset[sid][vid]['ped_annotations'][idx]['attributes'])
 
     return ped_info
 
@@ -55,10 +57,14 @@ def filter_None(x):
         return True
 
 
-def ped_info_clean_pie(annotations, image_set="all"):
+def ped_info_clean_pie(annotations, image_set="all") -> dict:
     """
-     Remove all fully occluded frames
+     Remove all frames has occlusion tag = 2 (fully occluded)
+    :param: annotations: PIE annotations in dictionary form
+            image_set : image_set : str: train,val.test set split of PIE
+    :return: cleaned information of all pedestrians in given set
     """
+    assert image_set in ['train', 'test', 'val', "all"], "Image set should be train, test or val"
     ped_info = get_ped_info_pie(annotations, image_set)
     ids = list(ped_info.keys())
     # remove all frames with occlusion tag=2
@@ -71,23 +77,18 @@ def ped_info_clean_pie(annotations, image_set="all"):
             ped_info[idx]['bbox'][full_occ[i]] = None
             ped_info[idx]['action'][full_occ[i]] = None
             ped_info[idx]['occlusion'][full_occ[i]] = None
-            ped_info[idx]['looking'][full_occ[i]] = None
             ped_info[idx]['cross'][full_occ[i]] = None
-            ped_info[idx]['gesture'][full_occ[i]] = None
-
         # filter all None values
         ped_info[idx]['frames'] = list(filter(filter_None, ped_info[idx]['frames']))
         ped_info[idx]['bbox'] = list(filter(filter_None, ped_info[idx]['bbox']))
         ped_info[idx]['action'] = list(filter(filter_None, ped_info[idx]['action']))
         ped_info[idx]['occlusion'] = list(filter(filter_None, ped_info[idx]['occlusion']))
-        ped_info[idx]['looking'] = list(filter(filter_None, ped_info[idx]['looking']))
         ped_info[idx]['cross'] = list(filter(filter_None, ped_info[idx]['cross']))
-        ped_info[idx]['gesture'] = list(filter(filter_None, ped_info[idx]['gesture']))
 
     return ped_info
 
 
-def add_transition_labels_pie(dataset, verbose=False):
+def add_transition_labels_pie(dataset, verbose=False) -> None:
     """
     Add labels to show the time (number of frames)
     away from next action transition
@@ -102,7 +103,6 @@ def add_transition_labels_pie(dataset, verbose=False):
         dataset[idx]['next_transition'] = []
         stw_time = []
         wts_time = []
-
         for j in range(len(action) - 1):
             if action[j] == 0 and action[j + 1] == 1:
                 all_stw += 1
@@ -110,7 +110,6 @@ def add_transition_labels_pie(dataset, verbose=False):
             elif action[j] == 1 and action[j + 1] == 0:
                 all_wts += 1
                 wts_time.append(frames[j + 1])
-
         # merge
         trans_time_ped = np.array(sorted(stw_time + wts_time))
         # set transition tag
@@ -122,7 +121,6 @@ def add_transition_labels_pie(dataset, verbose=False):
                 dataset[idx]['next_transition'].append(next_trans_ped - t)
             else:
                 dataset[idx]['next_transition'].append(None)
-
     if verbose:
         print('\n')
         print('----------------------------------------------------------------')
@@ -132,7 +130,11 @@ def add_transition_labels_pie(dataset, verbose=False):
     return None
 
 
-def build_ped_dataset_pie(pie_anns_path, image_set="all", verbose=False):
+def build_ped_dataset_pie(pie_anns_path, image_set="all", verbose=False) -> dict:
+    """
+    Build pedestrian dataset from PIE annotations
+    """
+    assert image_set in ['train', 'test', 'val', "all"], "Image set should be train, test or val"
     pie_anns = pickle.load(open(pie_anns_path, 'rb'))
     ped_dataset = ped_info_clean_pie(pie_anns, image_set)
     add_transition_labels_pie(ped_dataset, verbose)
@@ -141,7 +143,7 @@ def build_ped_dataset_pie(pie_anns_path, image_set="all", verbose=False):
 
 
 # -----------------------------------------------
-class pie_trans_dataset():
+class PieTransDataset:
     # dataset class for pedestrian samples
     def __init__(self, pie_anns_path, image_set="all", verbose=False):
         assert image_set in ['train', 'test', 'val', "all"]
@@ -161,11 +163,7 @@ class pie_trans_dataset():
             bbox = copy.deepcopy(dataset[idx]['bbox'])
             action = copy.deepcopy(dataset[idx]['action'])
             cross = copy.deepcopy(dataset[idx]['cross'])
-            looking = copy.deepcopy(dataset[idx]["looking"])
-            gesture = copy.deepcopy(dataset[idx]["gesture"])
             next_transition = copy.deepcopy(dataset[idx]["next_transition"])
-            attributes = copy.deepcopy(dataset[idx]["attributes"])
-
             for i in range(len(frames)):
                 key = None
                 old_id = None
@@ -193,22 +191,19 @@ class pie_trans_dataset():
                     samples[key]['bbox'] = bbox[i]
                     samples[key]['action'] = action[i]
                     samples[key]['cross'] = cross[i]
-                    samples[key]['looking'] = looking[i]
-                    samples[key]['gesture'] = gesture[i]
-                    samples[key]["attributes"] = attributes
         if verbose:
             print(f"Extract {len(samples.keys())} {mode} sample frames from PIE {self.name} set")
 
         return samples
-    
-    def extract_trans_history(self, mode = "GO", fps = 30):
+
+    def extract_trans_history(self, mode="GO", fps=30):
         dataset = self.dataset
         assert mode in ["GO", "STOP"], "Transition type should be STOP or GO"
         ids = list(dataset.keys())
         samples = {}
         j = 0
         step = 30 // fps
-        assert isinstance(step,int)
+        assert isinstance(step, int)
         for idx in ids:
             sid = copy.deepcopy(dataset[idx]['set_number'])
             vid = copy.deepcopy(dataset[idx]['video_number'])
@@ -216,11 +211,7 @@ class pie_trans_dataset():
             bbox = copy.deepcopy(dataset[idx]['bbox'])
             action = copy.deepcopy(dataset[idx]['action'])
             cross = copy.deepcopy(dataset[idx]['cross'])
-            looking = copy.deepcopy(dataset[idx]['looking'])
-            gesture = copy.deepcopy(dataset[idx]['gesture'])
             next_transition = copy.deepcopy(dataset[idx]["next_transition"])
-            attributes = copy.deepcopy(dataset[idx]["attributes"])
-
             for i in range(len(frames)):
                 key = None
                 old_id = None
@@ -253,10 +244,5 @@ class pie_trans_dataset():
                     samples[key]['action'].reverse()
                     samples[key]['cross'] = cross[i::-step]
                     samples[key]['cross'].reverse()
-                    samples[key]['looking'] = looking[i::-step]
-                    samples[key]['looking'].reverse()
-                    samples[key]['gesture'] = gesture[i::-step]
-                    samples[key]['gesture'].reverse()
-                    samples[key]["attributes"] = attributes
-                
+
         return samples
