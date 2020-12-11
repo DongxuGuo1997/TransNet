@@ -113,7 +113,7 @@ def pedb_info_clean_jaad(annotations, vid) -> dict:
     return pedb_info
 
 
-def add_transition_labels_jaad(dataset, verbose=False) -> None:
+def add_trans_label_jaad(dataset, verbose=False) -> None:
     """
     Add stop & go transition labels for every frame
     """
@@ -176,7 +176,7 @@ def build_pedb_dataset_jaad(jaad_anns_path, split_vids_path, image_set="all", ve
             pedb_dataset[idx]['action'] = pedb_info[idx]['action']
             pedb_dataset[idx]['occlusion'] = pedb_info[idx]['occlusion']
             pedb_dataset[idx]["cross"] = pedb_info[idx]["cross"]
-    add_transition_labels_jaad(pedb_dataset, verbose)
+    add_trans_label_jaad(pedb_dataset, verbose)
 
     return pedb_dataset
 

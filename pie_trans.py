@@ -88,7 +88,7 @@ def ped_info_clean_pie(annotations, image_set="all") -> dict:
     return ped_info
 
 
-def add_transition_labels_pie(dataset, verbose=False) -> None:
+def add_trans_label_pie(dataset, verbose=False) -> None:
     """
     Add labels to show the time (number of frames)
     away from next action transition
@@ -137,7 +137,7 @@ def build_ped_dataset_pie(pie_anns_path, image_set="all", verbose=False) -> dict
     assert image_set in ['train', 'test', 'val', "all"], "Image set should be train, test or val"
     pie_anns = pickle.load(open(pie_anns_path, 'rb'))
     ped_dataset = ped_info_clean_pie(pie_anns, image_set)
-    add_transition_labels_pie(ped_dataset, verbose)
+    add_trans_label_pie(ped_dataset, verbose)
 
     return ped_dataset
 
