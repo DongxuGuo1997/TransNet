@@ -4,6 +4,7 @@ import numpy as np
 import copy
 
 
+
 def get_split_vids_titan(split_vids_path, image_set="all") -> list:
     """
         Returns a list of video ids for a given data split
@@ -24,18 +25,53 @@ def get_split_vids_titan(split_vids_path, image_set="all") -> list:
 
 def read_csv_titan(anns_dir, vid):
     video_number = int(vid.split("_")[1])
-    df = pd.read_csv(os.path.join(anns_dir, vid))
+    df = pd.read_csv(os.path.join(anns_dir, vid + '.csv'))
     veh_rows = df[df['label'] != "person"].index
     df.drop(veh_rows, inplace=True)
-    df.drop([df.columns[1], df.columns[7], df.columns[8], df.columns[9], df.columns[10],
+    df.drop([df.columns[1], df.columns[7], df.columns[8], df.columns[9], df.columns[10], \
              df.columns[11], df.columns[14], df.columns[15]],
             axis='columns', inplace=True)
     df.sort_values(by=['obj_track_id', 'frames'], inplace=True)
     ped_info_raw = df.values.tolist()
     pids = df['obj_track_id'].values.tolist()
     pids = list(set(list(map(int, pids))))
-
+    
     return video_number, ped_info_raw, pids
+
+
+def get_ped_info_titan(anns_dir, vids) -> dict:
+    ped_info = {}
+    for vid in vids:
+        video_number, ped_info_raw, pids = read_csv_titan(anns_dir, vid)
+        n = len(pids)
+        ped_info[vid]={}
+        flag = 0
+        for i in range(n):
+            idx = f"ped_{video_number}_{i + 1}"
+            ped_info[vid][idx] = {}
+            ped_info[vid][idx]["frames"] = []
+            ped_info[vid][idx]["bbox"] = []
+            ped_info[vid][idx]["action"] = []
+            # anns[vid][idx]["cross"] = []
+            for j in range(flag, len(ped_info_raw)):
+                if ped_info_raw[j][1] == pids[i]:
+                    ele = ped_info_raw[j]
+                    t = int(ele[0].split('.')[0])
+                    #box = list([ele[3], ele[2], ele[3] + ele[5], ele[2] + ele[4]])
+                    box = list(map(round, [ele[3], ele[2], ele[3] + ele[5], ele[2] + ele[4]]))
+                    box = list(map(float, box))
+                    action = 1 if ele[6] == "walking" else 0
+                    ped_info[vid][idx]['frames'].append(t)
+                    ped_info[vid][idx]['bbox'].append(box)
+                    ped_info[vid][idx]['action'].append(action)
+                else:
+                    flag += len(ped_info[vid][idx]["frames"])
+                    break
+            ped_info[vid][idx]['old_id'] = vid + f'_{pids[i]}'
+            
+    return ped_info
+
+
 
 
 def convert_anns_titan(anns_dir, vids) -> dict:
@@ -43,7 +79,6 @@ def convert_anns_titan(anns_dir, vids) -> dict:
     for vid in vids:
         video_number, ped_info_raw, pids = read_csv_titan(anns_dir, vid)
         n = len(pids)
-        anns = {}
         flag = 0
         for i in range(n):
             idx = f"ped_{video_number}_{i + 1}"
@@ -59,7 +94,7 @@ def convert_anns_titan(anns_dir, vids) -> dict:
                     # box = list([ele[3], ele[2], ele[3] + ele[5], ele[2] + ele[4]])
                     box = list(map(round, [ele[3], ele[2], ele[3] + ele[5], ele[2] + ele[4]]))
                     box = list(map(float, box))
-                    action = 1 if ele[6] in ["walking", "running"] else 0
+                    action = 1 if ele[6] in ["walking",'running'] else 0
                     anns[idx]['frames'].append(t)
                     anns[idx]['bbox'].append(box)
                     anns[idx]['action'].append(action)
@@ -119,7 +154,7 @@ def build_ped_dataset_titan(anns_dir, split_vids_path, image_set="all", verbose=
     Build pedestrian dataset from TITAN annotations
     """
     assert image_set in ['train', 'test', 'val', "all"], "Image set should be train, test or val"
-    vids = get_split_vids_titan(split_vids_path, image_set="all")
+    vids = get_split_vids_titan(split_vids_path, image_set)
     ped_dataset = convert_anns_titan(anns_dir, vids)
     add_trans_label_titan(ped_dataset, verbose=verbose)
 
@@ -147,7 +182,7 @@ class TitanTransDataset:
             frames = copy.deepcopy(dataset[idx]['frames'])
             bbox = copy.deepcopy(dataset[idx]['bbox'])
             action = copy.deepcopy(dataset[idx]['action'])
-            old_id = copy.deepcopy(dataset[idx]['old_id'])
+            old_id =  copy.deepcopy(dataset[idx]['old_id'])
             # cross = copy.deepcopy(dataset[idx]['cross'])
             next_transition = copy.deepcopy(dataset[idx]["next_transition"])
             for i in range(len(frames)):
@@ -191,7 +226,6 @@ class TitanTransDataset:
             frames = copy.deepcopy(dataset[idx]['frames'])
             bbox = copy.deepcopy(dataset[idx]['bbox'])
             action = copy.deepcopy(dataset[idx]['action'])
-            old_id = copy.deepcopy(dataset[idx]['old_id'])
             # cross = copy.deepcopy(dataset[idx]['cross'])
             next_transition = copy.deepcopy(dataset[idx]["next_transition"])
             for i in range(len(frames)):
@@ -203,7 +237,7 @@ class TitanTransDataset:
                         key = "TG_" + new_id
                         old_id = f'{idx}/{vid_id}/' + '{:03d}'.format(frames[i])
                 if mode == "STOP":
-                    if next_transition[i] == 0 and action[i] == 0:
+                    if next_transition[i] == 0 and action[i] == 0 :
                         j += 1
                         new_id = "{:04d}".format(j) + "_" + self.name
                         key = "TS_" + new_id
@@ -223,5 +257,5 @@ class TitanTransDataset:
                     # samples[key]['cross'].reverse()
         if verbose:
             print(f"Extract {len(samples.keys())} {mode} sample frames from TITAN {self.name} set")
-
+            
         return samples
