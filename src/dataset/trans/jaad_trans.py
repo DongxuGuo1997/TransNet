@@ -150,8 +150,8 @@ def add_trans_label_jaad(dataset, verbose=False) -> None:
                 dataset[idx]['next_transition'].append(None)
 
     if verbose:
-        print('\n')
         print('----------------------------------------------------------------')
+        print("JAAD:")
         print(f'Total number of standing to walking transitions(raw): {all_stw}')
         print(f'Total number of walking to standing transitions(raw): {all_wts}')
 
@@ -191,7 +191,7 @@ class JaadTransDataset:
         self.dataset = build_pedb_dataset_jaad(jaad_anns_path, split_vids_path, image_set, verbose)
         self.name = image_set
 
-    def extract_trans_frame(self, mode="GO", verbose=False):
+    def extract_trans_frame(self, mode="GO", verbose=False) -> dict:
         dataset = self.dataset
         assert mode in ["GO", "STOP"], "Transition type should be STOP or GO"
         ids = list(dataset.keys())
@@ -235,7 +235,13 @@ class JaadTransDataset:
 
         return samples
 
-    def extract_trans_history(self, mode="GO", fps=30):
+    def extract_trans_history(self, mode="GO", fps=30, verbose=False) -> dict:
+        """
+        Extract the whole history of pedestrian up to the frame when transition happens
+        :params: mode: target transition type, "GO" or "STOP"
+                fps: frame-per-second, sampling rate of extracted sequences, default 30
+                verbose: optional printing of sample statistics
+        """
         dataset = self.dataset
         assert mode in ["GO", "STOP"], "Transition type should be STOP or GO"
         ids = list(dataset.keys())
@@ -260,13 +266,13 @@ class JaadTransDataset:
                         j += 1
                         new_id = "{:04d}".format(j) + "_" + self.name
                         key = "JG_" + new_id
-                        old_id = f'{idx}/{vid_id}/' + '{:03d}'.format(frames[i])
+                        old_id = idx
                 if mode == "STOP":
                     if next_transition[i] == 0 and action[i] == 0 and action[i - d1] == 1 and action[i + d2] == 0:
                         j += 1
                         new_id = "{:04d}".format(j) + "_" + self.name
                         key = "JS_" + new_id
-                        old_id = f'{idx}/{vid_id}/' + '{:03d}'.format(frames[i])
+                        old_id = idx
                 if key is not None:
                     samples[key] = {}
                     samples[key]["source"] = "JAAD"
@@ -280,5 +286,14 @@ class JaadTransDataset:
                     samples[key]['action'].reverse()
                     samples[key]['cross'] = cross[i::-step]
                     samples[key]['cross'].reverse()
+        if verbose:
+            keys = list(samples.keys())
+            pids = []
+            num_frames = 0
+            for k in keys:
+                pids.append(samples[k]['old_id'])
+                num_frames += len(samples[k]['frame'])
+            print(f"Extract {len(pids)} {mode} history samples from {self.name} dataset in JAAD ,")
+            print(f"samples contain {len(set(pids))} unique pedestrians and {num_frames} frames.")
 
         return samples
