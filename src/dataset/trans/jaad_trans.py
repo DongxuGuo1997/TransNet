@@ -7,12 +7,12 @@ import copy
 # --------------------------------------------------------------------
 def get_split_vids(split_vids_path, image_set, subset='default') -> list:
     """
-        Returns a list of video ids for a given data split
-        :param:  split_vids_path: path of JAAD split
-                image_set: Data split, train, test, val
-                subset: "all", "default" or "high_resolution"
-        :return: The list of video ids
-        """
+    Returns a list of video ids for a given data split
+    :param:  split_vids_path: path of JAAD split
+            image_set: Data split, train, test, val
+            subset: "all", "default" or "high_resolution"
+    :return: The list of video ids
+    """
     assert image_set in ["train", "test", "val", "all"]
     vid_ids = []
     sets = [image_set] if image_set != 'all' else ['train', 'test', 'val']
@@ -239,8 +239,8 @@ class JaadTransDataset:
         """
         Extract the whole history of pedestrian up to the frame when transition happens
         :params: mode: target transition type, "GO" or "STOP"
-                fps: frame-per-second, sampling rate of extracted sequences, default 30
-                verbose: optional printing of sample statistics
+                 fps: frame-per-second, sampling rate of extracted sequences, default 30
+                 verbose: optional printing of sample statistics
         """
         dataset = self.dataset
         assert mode in ["GO", "STOP"], "Transition type should be STOP or GO"

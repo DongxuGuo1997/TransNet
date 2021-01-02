@@ -6,11 +6,11 @@ import copy
 
 def get_split_vids_titan(split_vids_path, image_set="all") -> list:
     """
-        Returns a list of video ids for a given data split
-        :param:  split_vids_path: path of TITAN split
-                image_set: Data split, train, test, val
-        :return: The list of video ids
-        """
+    Returns a list of video ids for a given data split
+    :param:  split_vids_path: path of TITAN split
+             image_set: Data split, train, test, val
+    :return: The list of video ids
+    """
     assert image_set in ["train", "test", "val", "all"]
     vid_ids = []
     sets = [image_set + '_set'] if image_set != 'all' else ['train_set', 'test_set', 'val_set']

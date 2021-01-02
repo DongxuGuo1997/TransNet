@@ -51,6 +51,7 @@ class TransDataset:
                 fps: frame-per-second, sampling rate of extracted sequences, default 10
                 verbose: optional printing of sample statistics
         """
+        assert isinstance(fps, int) and 30 % fps == 0, "impossible fps"
         ds = list(self.dataset.keys())
         samples = {}
         for d in ds:
