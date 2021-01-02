@@ -111,7 +111,7 @@ and sample index,ie. `TG_003_train`. The data loading is done by customized PyTo
 After integrating JAAD, PIE and TITAN, TransNet contains <b>1078</b> "GO" samples and <b>1216</b> "STOP" samples, 
 involving <b>936</b> and <b>1060</b> unique pedestrians respectively. A more detailed analysis of the statistics is presented in the table below.<br>
 <br>
-![stats2](imgs/GO_stats.PNG)
+![stats1](imgs/GO_stats.PNG)
 <br>
 <br>
 ![stats2](imgs/STOP_stats.PNG)
