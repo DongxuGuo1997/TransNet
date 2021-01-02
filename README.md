@@ -104,6 +104,8 @@ Using attributes of `TransDataset`, the user can conveniently extract the frame 
 * `extract_trans_history()`: extract the whole history of a pedestrian up to the frame when transition happens <br>
 The extracted samples each has an unique id specifying the source dataset(`J`,`P`,`T`), transition type(`S`,`G`),data split(`trian`,`val`,`test`) 
 and sample index,ie. `TG_003_train`. The data loading is done by customized PyTorch dataloader. For detailed usage please check the example in .<br>
+<br>
+
 ![ex2](imgs/TITAN.gif)
 
 ## Statistics
