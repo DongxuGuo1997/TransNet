@@ -43,7 +43,7 @@ class FrameDataset(torch.utils.data.Dataset):
         idx = ids[index]
         frame = self.samples[idx]['frame']
         bbox = copy.deepcopy(self.samples[idx]['bbox'])
-        source = self.samples["source"]
+        source = self.samples[idx]["source"]
         label = self.samples[idx]['future_state']
         current_state = self.samples[idx]['current_state']
         image_path = None
