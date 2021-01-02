@@ -1,11 +1,8 @@
-import sys
-import pickle
 import os
-import numpy as np
-
 import copy
 import PIL
 import torch
+
 
 class ImageList(torch.utils.data.Dataset):
     """
@@ -74,6 +71,47 @@ class FrameDataset(torch.utils.data.Dataset):
         sample = {'image': img_tensor, 'bbox': bbox, 'current_state': current_state}
 
         return sample, label
+
+    def __len__(self):
+        return len(self.samples.keys())
+
+
+class SequenceDataset(torch.utils.data.Dataset):
+    def __init__(self, samples, image_dir, preprocess=None):
+        self.samples = samples
+        self.image_dir = image_dir
+        self.preprocess = preprocess
+
+    def __getitem__(self, index):
+        ids = list(self.samples.keys())  # pedID/video_/frame
+        idx = ids[index]
+        frames = self.samples[idx]['frame']
+        bbox = copy.deepcopy(self.samples[idx]['bbox'])
+        source = self.samples[idx]["source"]
+        action = self.samples[idx]['action']
+        image_path = None
+        # image paths
+        img_tensors = []
+        for i in range(len(frames)):
+            if source == "JAAD":
+                vid = self.samples[idx]['video_number']
+                image_path = os.path.join(self.image_dir, 'JAAD', vid, '{:05d}.png'.format(frames[i]))
+            elif source == "PIE":
+                vid = self.samples[idx]['video_number']
+                sid = self.samples[idx]['set_number']
+                image_path = os.path.join(self.image_dir, 'PIE', sid, vid, '{:05d}.png'.format(frames[i]))
+            elif source == "TITAN":
+                vid = self.samples[idx]['video_number']
+                image_path = os.path.join(self.image_dir, 'TITAN', vid, 'images', '{:06}.png'.format(frames[i]))
+            with open(image_path, 'rb') as f:
+                image = PIL.Image.open(f).convert('RGB')
+            if self.preprocess is not None:
+                image = self.preprocess(image)
+            img_tensors.append(torchvision.transforms.ToTensor()(image))
+        img_tensors = torch.stack(img_tensors)
+        sample = {'image': img_tensors, 'bbox': bbox, 'action': action, 'id': idx}
+
+        return sample
 
     def __len__(self):
         return len(self.samples.keys())
