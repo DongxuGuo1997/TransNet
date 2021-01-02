@@ -113,6 +113,4 @@ After integrating JAAD, PIE and TITAN, TransNet contains <b>1078</b> "GO" sample
 involving <b>936</b> and <b>1060</b> unique pedestrians respectively. A more detailed analysis of the statistics is presented in the table below.<br>
 <br>
 ![stats1](imgs/GO_stats.PNG)
-<br>
-<br>
 ![stats2](imgs/STOP_stats.PNG)
