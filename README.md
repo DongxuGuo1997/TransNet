@@ -3,7 +3,7 @@ This repository contains the code of *TransNet*, our benchmark for studying the 
 Walking to standing and standing to walking transitions are specific and relatively rare cases, hence samples are collected from several external datasets and 
 integrated with unified interface.
 
-![exp1](imgs/jaad_01.gif)
+![ex1](imgs/jaad_01.gif)
 
 ### Table of Contents
 - [Installation](#installation)
@@ -105,7 +105,7 @@ Using attributes of `TransDataset`, the user can conveniently extract the frame 
 The extracted samples each has an unique id specifying the source dataset(`J`,`P`,`T`), transition type(`S`,`G`),data split(`trian`,`val`,`test`) 
 and sample index,ie. `TG_003_train`. The data loading is done by customized PyTorch dataloader. For detailed usage please check the example in .<br>
 <br>
-![exp2](imgs/TITAN.gif)
+![ex2](imgs/TITAN.gif)
 
 ## Statistics
 After integrating JAAD, PIE and TITAN, TransNet contains <b>1078</b> "GO" samples and <b>1216</b> "STOP" samples, 
