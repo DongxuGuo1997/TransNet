@@ -1,4 +1,6 @@
 # TransNet: Benchmark for Pedestrian Stop & Go Forecasting
+[![Python 3.8](https://img.shields.io/badge/python-3.8-blue.svg)](https://www.python.org/downloads/release/python-380//)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT) <br>
 This repository contains the code of *TransNet*, our benchmark for studying the pedestrian stop and go behaviors in the context of self-driving. 
 Walking to standing and standing to walking transitions are specific and relatively rare cases, hence samples are collected from several external datasets and 
 integrated with unified interface.
@@ -10,7 +12,8 @@ integrated with unified interface.
 - [Data preparation](#data-preparation)
 - [Interface](#interface)
 - [Statistics](#Statistics)
-
+- [Further work](#futher-work)
+- [References](#references)
 
 
 ## Installation
@@ -21,8 +24,11 @@ git clone https://github.com/DongxuGuo1997/PSGF.git
 ```
 
 The project is written and tested using python 3.8. The interface also require external libraries like PyTorch,
-opencv-python, etc.  All required packages can be found in `requirements.txt`. 
-Please ensure all expected modules are installed before using the interface.
+opencv-python, etc.  All required packages can be found in `requirements.txt` and to install dependencies run:
+```
+pip install -r requirements.txt
+```
+Please ensure all expected modules are properly installed before using the interface.
 
 
 ## Data preparation
@@ -103,7 +109,7 @@ Using attributes of `TransDataset`, the user can conveniently extract the frame 
 * `extract_trans_frame()`: extract the frame where stop or go transitions occur and the annotations of involved pedestrian
 * `extract_trans_history()`: extract the whole history of a pedestrian up to the frame when transition happens <br>
 The extracted samples each has an unique id specifying the source dataset(`J`,`P`,`T`), transition type(`S`,`G`),data split(`trian`,`val`,`test`) 
-and sample index,ie. `TG_003_train`. The data loading is done by customized PyTorch dataloader. For detailed usage please check the example in .<br>
+and sample index,ie. `TG_003_train`. The data loading is done by customized PyTorch dataloader. For detailed usage please check the example in `exp.ipynb`.<br>
 <br>
 ![exp2](imgs/TITAN.gif)
 
@@ -115,3 +121,17 @@ involving <b>936</b> and <b>1060</b> unique pedestrians respectively. A more det
 <br>
 <br>
 ![stats2](imgs/STOP_stats.PNG)
+<br>
+
+## Further work
+TransNet serves as the prime data source for the on-going project "Pedestrian Stop and Go Forecasting" in [VITA](https://www.epfl.ch/labs/vita/).
+In future we expected more relevant datasets to be integrated in this benchmark.
+Please send email to [dongxu.guo@epfl.ch]() if you encounter problems using the interface or have suggestions for improving the usability.
+
+## Reference
+- Rasouli et al., ["Are They Going to Cross? A Benchmark Dataset and Baseline for Pedestrian
+Crosswalk Behavior"](https://openaccess.thecvf.com/content_ICCV_2017_workshops/papers/w3/Rasouli_Are_They_Going_ICCV_2017_paper.pdf), ICCV 2017
+- Rasouli et al., ["PIE: A Large-Scale Dataset and Models for Pedestrian Intention Estimation and
+Trajectory Prediction"](https://openaccess.thecvf.com/content_ICCV_2019/papers/Rasouli_PIE_A_Large-Scale_Dataset_and_Models_for_Pedestrian_Intention_Estimation_ICCV_2019_paper.pdf),
+ ICCV 2019
+- Malla et al., ["TITAN: Future Forecast using Action Priors"](https://arxiv.org/abs/2003.13886), CVPR 2020
