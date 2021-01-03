@@ -126,7 +126,7 @@ involving <b>936</b> and <b>1060</b> unique pedestrians respectively. A more det
 ## Further work
 TransNet serves as the prime data source for the on-going project "Pedestrian Stop and Go Forecasting" in [VITA](https://www.epfl.ch/labs/vita/).
 In future we expected more relevant datasets to be integrated in this benchmark.
-Please send email to [dongxu.guo@epfl.ch]() if you encounter problems using the interface or have suggestions for improving the usability.
+Please send email to [dongxu.guo@epfl.ch]() if you encounter any problems using the interface or have suggestions for improving the usability.
 
 ## Reference
 - Rasouli et al., ["Are They Going to Cross? A Benchmark Dataset and Baseline for Pedestrian
