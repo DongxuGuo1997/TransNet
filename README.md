@@ -12,7 +12,7 @@ integrated with unified interface.
 - [Data preparation](#data-preparation)
 - [Interface](#interface)
 - [Statistics](#Statistics)
-- [Further work](#futher-work)
+- [Further work](#further-work)
 - [References](#references)
 
 
@@ -119,7 +119,6 @@ After integrating JAAD, PIE and TITAN, TransNet contains <b>1078</b> "GO" sample
 involving <b>936</b> and <b>1060</b> unique pedestrians respectively. A more detailed analysis of the statistics is presented in the table below.<br>
 <br>
 ![stats1](imgs/GO_stats.PNG)
-<<<<<<< HEAD
 <br>
 <br>
 ![stats2](imgs/STOP_stats.PNG)
@@ -130,14 +129,11 @@ TransNet serves as the prime data source for the on-going project "Pedestrian St
 In future we expected more relevant datasets to be integrated in this benchmark.
 Please send email to [dongxu.guo@epfl.ch]() if you encounter any problems using the interface or have suggestions for improving the usability.
 
-## Reference
+## References
 - Rasouli et al., ["Are They Going to Cross? A Benchmark Dataset and Baseline for Pedestrian
 Crosswalk Behavior"](https://openaccess.thecvf.com/content_ICCV_2017_workshops/papers/w3/Rasouli_Are_They_Going_ICCV_2017_paper.pdf), ICCV 2017
 - Rasouli et al., ["PIE: A Large-Scale Dataset and Models for Pedestrian Intention Estimation and
 Trajectory Prediction"](https://openaccess.thecvf.com/content_ICCV_2019/papers/Rasouli_PIE_A_Large-Scale_Dataset_and_Models_for_Pedestrian_Intention_Estimation_ICCV_2019_paper.pdf),
  ICCV 2019
 - Malla et al., ["TITAN: Future Forecast using Action Priors"](https://arxiv.org/abs/2003.13886), CVPR 2020
-=======
-![stats2](imgs/STOP_stats.PNG)
->>>>>>> 10ef0d8bcbbee787447d6a18e7c9862b07043315
 
