@@ -131,6 +131,10 @@ involving <b>936</b> and <b>1060</b> unique pedestrians respectively. A more det
 <br>
 ![stats2](imgs/STOP_stats.PNG)
 <br>
+where <br>
+* `#samples`: number of transition instances
+* `#pedestrians`: number of unique pedestrians
+* `#frames`: number of frames in all transition history(sequence) samples, with default sampling rate 10 frames per second.
 
 ## Further work
 TransNet serves as the primary data source for the on-going project "Pedestrian Stop and Go Forecasting" in [VITA](https://www.epfl.ch/labs/vita/).
