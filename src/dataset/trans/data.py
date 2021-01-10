@@ -5,7 +5,7 @@ from .titan_trans import *
 
 class TransDataset:
 
-    def __init__(self, data_paths, image_set="all", verbose=False):
+    def __init__(self, data_paths, image_set="all", subset='default', verbose=False):
         dataset = {}
         assert image_set in ['train', 'test', 'val', "all"], " Name should be train, test, val or all"
         for d in list(data_paths.keys()):
@@ -14,7 +14,8 @@ class TransDataset:
                 dataset['JAAD'] = JaadTransDataset(
                     jaad_anns_path=data_paths['JAAD']['anns'],
                     split_vids_path=data_paths['JAAD']['split'],
-                    image_set=image_set, verbose=verbose)
+                    image_set=image_set,
+                    subset=subset, verbose=verbose)
             elif d == "PIE":
                 dataset['PIE'] = PieTransDataset(
                     pie_anns_path=data_paths['PIE']['anns'],

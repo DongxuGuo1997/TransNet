@@ -158,13 +158,13 @@ def add_trans_label_jaad(dataset, verbose=False) -> None:
     return None
 
 
-def build_pedb_dataset_jaad(jaad_anns_path, split_vids_path, image_set="all", verbose=False) -> dict:
+def build_pedb_dataset_jaad(jaad_anns_path, split_vids_path, image_set="all", subset='default', verbose=False) -> dict:
     """
     Build pedestrian dataset from jaad annotations
     """
     jaad_anns = pickle.load(open(jaad_anns_path, 'rb'))
     pedb_dataset = {}
-    vids = get_split_vids(split_vids_path, image_set, subset='default')
+    vids = get_split_vids(split_vids_path, image_set, subset)
     for vid in vids:
         pedb_info = pedb_info_clean_jaad(jaad_anns, vid)
         pids = list(pedb_info.keys())
@@ -186,9 +186,9 @@ class JaadTransDataset:
      dataset class for transition-related pedestrian samples in JAAD
     """
 
-    def __init__(self, jaad_anns_path, split_vids_path, image_set="all", verbose=False):
+    def __init__(self, jaad_anns_path, split_vids_path, image_set="all", subset='default', verbose=False):
         assert image_set in ['train', 'test', 'val', "all"], " Name should be train, test, val or all"
-        self.dataset = build_pedb_dataset_jaad(jaad_anns_path, split_vids_path, image_set, verbose)
+        self.dataset = build_pedb_dataset_jaad(jaad_anns_path, split_vids_path, image_set, subset, verbose)
         self.name = image_set
 
     def extract_trans_frame(self, mode="GO", verbose=False) -> dict:
