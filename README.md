@@ -46,14 +46,18 @@ Currently TransNet support the following datasets:<br/>
 
 - Download the videos and annotations from [official page](https://github.com/ykotseruba/JAAD). 
 - Use the [scripts](https://github.com/ykotseruba/JAAD/blob/JAAD_2.0/split_clips_to_frames.sh) provided to extract images from videos.
-- Use JAAD's [interface](https://github.com/ykotseruba/JAAD/blob/JAAD_2.0/jaad_data.py#L421) to generate complete annotations in the form of python dictionary.
-- Train / val / test split: [link](https://github.com/ykotseruba/JAAD/tree/JAAD_2.0/split_ids)
+- Use JAAD's [interface](https://github.com/ykotseruba/JAAD/blob/JAAD_2.0/jaad_data.py) to generate complete annotations in the form of python dictionary.
+  More precisely use [`generate_database()`](https://github.com/ykotseruba/JAAD/blob/JAAD_2.0/jaad_data.py#L421) to obtain the all JAAD annotations in dictionary form as a pkl file.
+  Please rename the .pkl file as `JAAD_DATA.pkl` and place it in `DATA/annotations/JAAD/anns`
+- Train / val / test split: [link](https://github.com/ykotseruba/JAAD/tree/JAAD_2.0/split_ids).
 
 ##### PIE
 
 - Download the videos and annotations from [offical page](https://github.com/aras62/PIE#interface). 
 - Use the [scripts](https://github.com/aras62/PIE/blob/master/split_clips_to_frames.sh) provided to extract images from videos.
-- Use PIE's [interface](https://github.com/aras62/PIE/blob/master/pie_data.py#L441) to generate complete annotations in the form of python dictionary.
+- Use PIE's [interface](https://github.com/aras62/PIE/blob/master/pie_data.py) to generate complete annotations in the form of python dictionary.
+  In detail, please use [`generate_database()`](https://github.com/aras62/PIE/blob/master/pie_data.py#L441) to obtain the all JAAD annotations in dictionary form as a pkl file.
+  Rename the .pkl file as `PIE_DATA.pkl` and place it in `DATA/annotations/PIE/anns`
 - Train / val / test split: [link](https://github.com/aras62/PIE/blob/2256f96b8ab24d8407af34fb1f0b9a4714cd532e/pie_data.py#L84)
 
 ##### TITAN
@@ -66,30 +70,30 @@ The expected result:
 │   ├── annotations/ 
 │   │   ├── JAAD/ 
 │   │   │   ├── anns/  
-│   │   │   │   ├── JAAD_DATA.pkl
+│   │   │   │   ├── JAAD_DATA.pkl # see Data-preparation-download-JAAD
 │   │   │   └── splits/
 │   │   │   │   ├── all_videos/
-│   │   │   │   │   ├── train/
-│   │   │   │   │   └── val/
-│   │   │   │   │   └── test/
+│   │   │   │   │   ├── train。txt
+│   │   │   │   │   └── val.txt
+│   │   │   │   │   └── test.txt
 │   │   │   │   └── default/
-│   │   │   │   │   ├── train/
-│   │   │   │   │   └── val/
-│   │   │   │   │   └── test/
+│   │   │   │   │   ├── train.txt
+│   │   │   │   │   └── val.txt
+│   │   │   │   │   └── test.txt
 │   │   │   │   └── high_visibility/
-│   │   │   │   │   ├── train/
-│   │   │   │   │   └── val/
-│   │   │   │   │   └── test/  
+│   │   │   │   │   ├── train.txt
+│   │   │   │   │   └── val.txt
+│   │   │   │   │   └── test.txt
 │   │   └── PIE/
 │   │   │   ├── anns/ 
-│   │   │   │   ├── PIE_DATA.pkl
+│   │   │   │   ├── PIE_DATA.pkl # see Data-preparation-download-PIE
 │   │   └── TITAN/
 │   │   │   ├── anns/
 │   │   │   │   ├── clip_x.csv
 │   │   │   └── splits/
-│   │   │   │   │   ├── train_set/
-│   │   │   │   │   └── val_set/
-│   │   │   │   │   └── test_set/
+│   │   │   │   │   ├── train_set.txt
+│   │   │   │   │   └── val_set.txt
+│   │   │   │   │   └── test_set.txt
 │   └── images/
 │   │   ├── JAAD/
 │   │   │   ├── video_xxxx/ # 346 videos
@@ -100,7 +104,7 @@ The expected result:
 │   │   │   ├── clip_xxx/  # 786 clips
 └── (+ files and folders containing the raw data)
 ```
-<b> Note </b>: No need to gather all datasets. The benchmark works normally with arbitrary combination of supported datasets.
+<b> Note </b>: No need to gather all datasets. The benchmark works normally with arbitrary subset of supported datasets when only the paths to desired datasets are specified.
 
 ## Interface  
 At the heart of TransNet data blocks is the [`TransDataset`](https://github.com/DongxuGuo1997/TransNet/blob/main/src/dataset/trans/data.py) class.
@@ -109,14 +113,21 @@ Using attributes of `TransDataset`, the user can conveniently extract the frame 
 * `extract_trans_frame()`: extract the frame where stop or go transitions occur and the annotations of involved pedestrian
 * `extract_trans_history()`: extract the whole history of a pedestrian up to the frame when transition happens <br>
 The extracted samples each has an unique id specifying the source dataset(`J`,`P`,`T`), transition type(`S`,`G`),data split(`trian`,`val`,`test`) 
-and sample index,ie. `TG_003_train`. The data loading is done by customized PyTorch dataloader. For detailed usage please check the example in `exp.ipynb`.<br>
-<br>
+and sample index,ie. `TG_003_train`. The data loading is done by customized PyTorch `torch.utils.data.Dataset`, namely [`SequenceDataset`](https://github.com/DongxuGuo1997/TransNet/blob/main/src/dataset/loader.py#L76) and 
+[`FrameDataset`](https://github.com/DongxuGuo1997/TransNet/blob/main/src/dataset/loader.py#L29). We also privede [`BaseVisualizer`](https://github.com/DongxuGuo1997/TransNet/blob/main/src/visualizer/draw.py#L36) for demonstrate the extracted samples. 
+Also notice TransNet works with arbitrary subset of supported datasets. 
+<b>For detailed usage please check the example in [<b>example.ipynb </b>](https://github.com/DongxuGuo1997/TransNet/blob/main/example.ipynb). <br>
+</b><br>
 
 ![ex2](imgs/TITAN.gif)
 
 ## Statistics
 After integrating JAAD, PIE and TITAN, TransNet contains <b>1078</b> "GO" samples and <b>1216</b> "STOP" samples, 
-involving <b>936</b> and <b>1060</b> unique pedestrians respectively. A more detailed analysis of the statistics is presented in the table below.<br>
+involving <b>936</b> and <b>1060</b> unique pedestrians respectively. A more detailed analysis of the statistics is presented in the table below.
+<br/>
+* `\#samples`: number of transition instances
+* `\#pedestrians`: number of unique pedestrians
+* `\#frames`: number of frames in all transition history(sequence) samples, with default sampling rate 10 frames per second.
 <br>
 ![stats1](imgs/GO_stats.PNG)
 <br>
@@ -136,4 +147,3 @@ Crosswalk Behavior"](https://openaccess.thecvf.com/content_ICCV_2017_workshops/p
 Trajectory Prediction"](https://openaccess.thecvf.com/content_ICCV_2019/papers/Rasouli_PIE_A_Large-Scale_Dataset_and_Models_for_Pedestrian_Intention_Estimation_ICCV_2019_paper.pdf),
  ICCV 2019
 - Malla et al., ["TITAN: Future Forecast using Action Priors"](https://arxiv.org/abs/2003.13886), CVPR 2020
-
