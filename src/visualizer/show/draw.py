@@ -28,3 +28,19 @@ def draw_ped_ann(image, bbox, action):
     image = cv2.rectangle(image, start_point, end_point, color, thickness)
 
     return image
+
+
+def show_frame_in_history(sample, k, title=''):
+    bbox = sample['bbox'][k]
+    action = sample['action'][k]
+    s = 'walking' if action else 'standing'
+    img_tensor = sample['image'][k]
+    pid = sample['id']
+    Tensor2PIL = torchvision.transforms.ToPILImage(mode='RGB')
+    pil_img = Tensor2PIL(img_tensor)
+    cv2_img = cv2.cvtColor(np.array(pil_img), cv2.COLOR_RGB2BGR)
+    image = draw_ped_ann(cv2_img, bbox, action)
+    plt.title(f'{pid}, image {k} ({s})')
+    plt.imshow(cv2.cvtColor(image, cv2.COLOR_BGR2RGB),aspect='equal')
+    
+    return None
