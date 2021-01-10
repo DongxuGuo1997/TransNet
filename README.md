@@ -73,7 +73,7 @@ The expected result:
 │   │   │   │   ├── JAAD_DATA.pkl # see Data-preparation-download-JAAD
 │   │   │   └── splits/
 │   │   │   │   ├── all_videos/
-│   │   │   │   │   ├── train。txt
+│   │   │   │   │   ├── train.txt
 │   │   │   │   │   └── val.txt
 │   │   │   │   │   └── test.txt
 │   │   │   │   └── default/
