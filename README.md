@@ -128,7 +128,7 @@ involving <b>936</b> and <b>1060</b> unique pedestrians respectively. A more det
 * `\#samples`: number of transition instances
 * `\#pedestrians`: number of unique pedestrians
 * `\#frames`: number of frames in all transition history(sequence) samples, with default sampling rate 10 frames per second.
-<br>
+<br/>
 ![stats1](imgs/GO_stats.PNG)
 <br>
 <br>
