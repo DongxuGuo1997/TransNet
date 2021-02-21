@@ -168,11 +168,13 @@ class TitanTransDataset:
         self.dataset = build_ped_dataset_titan(anns_dir, split_vids_path, image_set, verbose)
         self.name = image_set
 
-    def extract_trans_frame(self, mode="GO", verbose=False) -> dict:
+    def extract_trans_frame(self, mode="GO", frame_ahead=0, fps=10, verbose=False) -> dict:
         dataset = self.dataset
         assert mode in ["GO", "STOP"], "Transition type should be STOP or GO"
         ids = list(dataset.keys())
         samples = {}
+        step = 10 // fps
+        t_ahead = step * frame_ahead
         j = 0
         for idx in ids:
             vid_id = copy.deepcopy(dataset[idx]['video_number'])
@@ -196,21 +198,23 @@ class TitanTransDataset:
                         new_id = "{:04d}".format(j) + "_" + self.name
                         key = "TS_" + new_id
                         old_id = copy.deepcopy(dataset[idx]['old_id'])
-                if key is not None:
+                if key is not None and i - t_ahead >= 0:
                     samples[key] = {}
                     samples[key]["source"] = "TITAN"
                     samples[key]["old_id"] = old_id
                     samples[key]['video_number'] = vid_id
-                    samples[key]['frame'] = frames[i]
-                    samples[key]['bbox'] = bbox[i]
-                    samples[key]['action'] = action[i]
-                    # samples[key]['cross'] = cross[i]
+                    samples[key]['frame'] = frames[i-t_ahead]
+                    samples[key]['bbox'] = bbox[i-t_ahead]
+                    samples[key]['action'] = action[i-t_ahead]
+                    # samples[key]['cross'] = cross
+                    samples[key]['frame_ahead'] = frame_ahead
+                    samples[key]['type'] = mode
         if verbose:
             print(f"Extract {len(samples.keys())} {mode} sample frames from TITAN {self.name} set")
 
         return samples
 
-    def extract_trans_history(self, mode="GO", fps=10, verbose=False) -> dict:
+    def extract_trans_history(self, mode="GO", fps=10, max_frames=None, verbose=False) -> dict:
         """
         Extract the whole history of pedestrian up to the frame when transition happens
         :params: mode: target transition type, "GO" or "STOP"
@@ -229,8 +233,6 @@ class TitanTransDataset:
             frames = copy.deepcopy(dataset[idx]['frames'])
             bbox = copy.deepcopy(dataset[idx]['bbox'])
             action = copy.deepcopy(dataset[idx]['action'])
-            # old_id = copy.deepcopy(dataset[idx]['old_id'])
-            # cross = copy.deepcopy(dataset[idx]['cross'])
             next_transition = copy.deepcopy(dataset[idx]["next_transition"])
             for i in range(len(frames)):
                 key = None
@@ -240,25 +242,42 @@ class TitanTransDataset:
                         new_id = "{:04d}".format(j) + "_" + self.name
                         key = "TG_" + new_id
                         old_id = copy.deepcopy(dataset[idx]['old_id'])
+                        d_pre = 1
+                        while action[i - d_pre * step] == 0:
+                            d_pre += 1
+                        ap = np.array(action[i::step])
+                        cp = np.array(np.nonzero(ap == 0))
+                        d_pos = cp[0][0] if cp.size > 0 else len(ap)
                 if mode == "STOP":
                     if next_transition[i] == 0 and action[i] == 0:
                         j += 1
                         new_id = "{:04d}".format(j) + "_" + self.name
                         key = "TS_" + new_id
                         old_id = copy.deepcopy(dataset[idx]['old_id'])
+                        d_pre = 1
+                        while action[i - d_pre * step] == 1:
+                            d_pre += 1
+                        ap = np.array(action[i::step])
+                        cp = np.array(np.nonzero(ap == 1))
+                        d_pos = cp[0][0] if cp.size > 0 else len(ap)
                 if key is not None:
+                    if max_frames is None:
+                        t = None
+                    else:
+                        t = i - max_frames * step if (i - max_frames >= 0) else None
                     samples[key] = {}
                     samples[key]["source"] = "TITAN"
                     samples[key]["old_id"] = old_id
                     samples[key]['video_number'] = vid_id
-                    samples[key]['frame'] = frames[i::-step]
+                    samples[key]['frame'] = frames[i:t:-step]
                     samples[key]['frame'].reverse()
-                    samples[key]['bbox'] = bbox[i::-step]
+                    samples[key]['bbox'] = bbox[i:t:-step]
                     samples[key]['bbox'].reverse()
-                    samples[key]['action'] = action[i::-step]
+                    samples[key]['action'] = action[i:t:-step]
                     samples[key]['action'].reverse()
-                    # samples[key]['cross'] = cross[i::-step]
-                    # samples[key]['cross'].reverse()
+                    samples[key]['pre_state'] = d_pre - 1
+                    samples[key]['post_state'] = d_pos
+                    samples[key]['type'] = mode
         if verbose:
             keys = list(samples.keys())
             pids = []

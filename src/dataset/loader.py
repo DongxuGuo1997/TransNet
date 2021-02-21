@@ -27,16 +27,8 @@ class ImageList(torch.utils.data.Dataset):
 
 
 class FrameDataset(torch.utils.data.Dataset):
-    """
-    Basic dataset for loading transition frame samples
-    """
 
     def __init__(self, samples, image_dir, preprocess=None):
-        """
-        :params: samples: transition frame samples(dict)
-                image_dir: root dir for images extracted from video clips
-                preprocess: optional preprocessing on image tensors and annotations
-        """
         self.samples = samples
         self.image_dir = image_dir
         self.preprocess = preprocess
@@ -47,6 +39,10 @@ class FrameDataset(torch.utils.data.Dataset):
         frame = self.samples[idx]['frame']
         bbox = copy.deepcopy(self.samples[idx]['bbox'])
         source = self.samples[idx]["source"]
+        if 'trans_label' in list(self.samples[idx].keys()):
+            label = self.samples[idx]['trans_label']
+        else:
+            label = None
         image_path = None
         # image paths
         if source == "JAAD":
@@ -65,7 +61,7 @@ class FrameDataset(torch.utils.data.Dataset):
         if self.preprocess is not None:
             img, bbox = self.preprocess(img, bbox)
         img_tensor = torchvision.transforms.ToTensor()(img)
-        sample = {'image': img_tensor, 'bbox': bbox, 'id': idx}
+        sample = {'image': img_tensor, 'bbox': bbox, 'id': idx, 'label': label}
 
         return sample
 

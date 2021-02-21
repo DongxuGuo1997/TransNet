@@ -3,6 +3,11 @@ from .pie_trans import *
 from .titan_trans import *
 
 
+from .jaad_trans import *
+from .pie_trans import *
+from .titan_trans import *
+
+
 class TransDataset:
 
     def __init__(self, data_paths, image_set="all", subset='default', verbose=False):
@@ -29,11 +34,11 @@ class TransDataset:
         self.dataset = dataset
         self.name = image_set
 
-    def extract_trans_frame(self, mode="GO", verbose=False) -> dict:
+    def extract_trans_frame(self, mode="GO", frame_ahead=0, fps=10, verbose=False) -> dict:
         ds = list(self.dataset.keys())
         samples = {}
         for d in ds:
-            samples_new = self.dataset[d].extract_trans_frame(mode)
+            samples_new = self.dataset[d].extract_trans_frame(mode=mode, frame_ahead=frame_ahead, fps=fps)
             samples.update(samples_new)
         if verbose:
             ids = list(samples.keys())
@@ -45,7 +50,7 @@ class TransDataset:
 
         return samples
 
-    def extract_trans_history(self, mode="GO", fps=10, verbose=False) -> dict:
+    def extract_trans_history(self, mode="GO", fps=10, max_frames=None, verbose=False) -> dict:
         """
         Extract the whole history of pedestrian up to the frame when transition happens
         :params: mode: target transition type, "GO" or "STOP"
@@ -56,7 +61,7 @@ class TransDataset:
         ds = list(self.dataset.keys())
         samples = {}
         for d in ds:
-            samples_new = self.dataset[d].extract_trans_history(mode=mode, fps=fps)
+            samples_new = self.dataset[d].extract_trans_history(mode=mode, fps=fps, max_frames=max_frames)
             samples.update(samples_new)
         if verbose:
             ids = list(samples.keys())
@@ -69,3 +74,40 @@ class TransDataset:
             print(f"samples contain {len(set(pids))} unique pedestrians and {num_frames} frames.")
 
         return samples
+
+
+def extract_pred_frame(history, pred_ahead=0, verbose=False) -> dict:
+    assert isinstance(pred_ahead, int) and pred_ahead >= 0, "Invalid prediction length."
+    ids = list(history.keys())
+    samples = {}
+    n_1 = 0
+    for idx in ids:
+        frames = copy.deepcopy(history[idx]['frame'])
+        bbox = copy.deepcopy(history[idx]['bbox'])
+        action = copy.deepcopy(history[idx]['action'])
+        d_pre = history[idx]['pre_state']
+        n_frames = len(frames)
+        key = None
+        for i in range(n_frames):
+            if d_pre >= pred_ahead:
+                key = idx + f"_f{frames[i]}"
+                if i < n_frames - pred_ahead:
+                    trans_label = 0
+                else:
+                    trans_label = 1
+                    n_1 += 1
+            if key is not None:
+                samples[key] = {}
+                samples[key]['source'] = history[idx]['source']
+                if samples[key]['source'] == 'PIE':
+                    samples[key]['set_number'] = history[idx]['set_number']
+                samples[key]['video_number'] = history[idx]['video_number']
+                samples[key]['frame'] = frames[i]
+                samples[key]['bbox'] = bbox[i]
+                samples[key]['action'] = action[i]
+                samples[key]['trans_label'] = trans_label
+    if verbose:
+        print(f'Extract {len(samples.keys())} frame samples from {len(history.keys())} history sequences.')
+        print(f'1/0 ratio is 1 : {(len(samples.keys()) - n_1) / n_1} ; prediction length:{pred_ahead}')
+
+    return samples

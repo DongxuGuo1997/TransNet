@@ -150,7 +150,7 @@ class PieTransDataset:
         self.dataset = build_ped_dataset_pie(pie_anns_path, image_set=image_set, verbose=verbose)
         self.name = image_set
 
-    def extract_trans_frame(self, mode="GO", verbose=False) -> dict:
+    def extract_trans_frame(self, mode="GO", frame_ahead=0, fps=30, verbose=False) -> dict:
         """
         Extract the frame when the action transition happens
         """
@@ -159,6 +159,8 @@ class PieTransDataset:
         ids = list(dataset.keys())
         samples = {}
         j = 0
+        step = 30 // fps
+        t_ahead = step * frame_ahead
         for idx in ids:
             sid = copy.deepcopy(dataset[idx]['set_number'])
             vid = copy.deepcopy(dataset[idx]['video_number'])
@@ -184,22 +186,24 @@ class PieTransDataset:
                         new_id = "{:04d}".format(j) + "_" + self.name
                         key = "PS_" + new_id
                         old_id = idx
-                if key is not None:
+                if key is not None and i - t_ahead >= 0:
                     samples[key] = {}
                     samples[key]["source"] = "PIE"
                     samples[key]['set_number'] = sid
                     samples[key]['video_number'] = vid
                     samples[key]["old_id"] = old_id
-                    samples[key]['frame'] = frames[i]
-                    samples[key]['bbox'] = bbox[i]
-                    samples[key]['action'] = action[i]
-                    samples[key]['cross'] = cross[i]
+                    samples[key]['frame'] = frames[i-t_ahead]
+                    samples[key]['bbox'] = bbox[i-t_ahead]
+                    samples[key]['action'] = action[i-t_ahead]
+                    samples[key]['cross'] = cross[i-t_ahead]
+                    samples[key]['frame_ahead'] = frame_ahead
+                    samples[key]['type'] = mode
         if verbose:
             print(f"Extract {len(samples.keys())} {mode} sample frames from PIE {self.name} set")
 
         return samples
 
-    def extract_trans_history(self, mode="GO", fps=30, verbose=False) -> dict:
+    def extract_trans_history(self, mode="GO", fps=30, max_frames=None, verbose=False) -> dict:
         """
         Extract the whole history of pedestrian up to the frame when transition happens
         :params: mode: target transition type, "GO" or "STOP"
@@ -232,26 +236,45 @@ class PieTransDataset:
                         new_id = "{:04d}".format(j) + "_" + self.name
                         key = "PG_" + new_id
                         old_id = idx
+                        d_pre = 1
+                        while action[i - d_pre * step] == 0:
+                            d_pre += 1
+                        ap = np.array(action[i::step])
+                        cp = np.array(np.nonzero(ap == 0))
+                        d_pos = cp[0][0] if cp.size > 0 else len(ap)
                 if mode == "STOP":
                     if next_transition[i] == 0 and action[i] == 0 and action[i - d1] == 1 and action[i + d2] == 0:
                         j += 1
                         new_id = "{:04d}".format(j) + "_" + self.name
                         key = "PS_" + new_id
                         old_id = idx
+                        d_pre = 1
+                        while action[i - d_pre * step] == 1:
+                            d_pre += 1
+                        ap = np.array(action[i::step])
+                        cp = np.array(np.nonzero(ap == 1))
+                        d_pos = cp[0][0] if cp.size > 0 else len(ap)
                 if key is not None:
+                    if max_frames is None:
+                        t = None
+                    else:
+                        t = i - max_frames * step if (i - max_frames >= 0) else None
                     samples[key] = {}
                     samples[key]["source"] = "PIE"
                     samples[key]["old_id"] = old_id
                     samples[key]['set_number'] = sid
                     samples[key]['video_number'] = vid
-                    samples[key]['frame'] = frames[i::-step]
+                    samples[key]['frame'] = frames[i:t:-step]
                     samples[key]['frame'].reverse()
-                    samples[key]['bbox'] = bbox[i::-step]
+                    samples[key]['bbox'] = bbox[i:t:-step]
                     samples[key]['bbox'].reverse()
-                    samples[key]['action'] = action[i::-step]
+                    samples[key]['action'] = action[i:t:-step]
                     samples[key]['action'].reverse()
-                    samples[key]['cross'] = cross[i::-step]
-                    samples[key]['cross'].reverse()
+                    # samples[key]['cross'] = cross[i:t:-step]
+                    # samples[key]['cross'].reverse()
+                    samples[key]['pre_state'] = d_pre - 1
+                    samples[key]['post_state'] = d_pos
+                    samples[key]['type'] = mode
         if verbose:
             keys = list(samples.keys())
             pids = []
