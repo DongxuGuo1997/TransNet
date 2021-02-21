@@ -125,16 +125,16 @@ Also notice TransNet works with arbitrary subset of supported datasets.
 After integrating JAAD, PIE and TITAN, TransNet contains <b>1078</b> "GO" samples and <b>1216</b> "STOP" samples, 
 involving <b>936</b> and <b>1060</b> unique pedestrians respectively. A more detailed analysis of the statistics is presented in the table below.
 <br/>
-* `#samples`: number of transition instances
-* `#pedestrians`: number of unique pedestrians
-* `#frames`: number of frames in all transition history(sequence) samples, with default sampling rate 10 frames per second.
-<br/>
 <br>
 ![stats1](imgs/GO_stats.PNG)
 <br>
 <br>
 ![stats2](imgs/STOP_stats.PNG)
 <br>
+where <br>
+* `#samples`: number of transition instances
+* `#pedestrians`: number of unique pedestrians
+* `#frames`: number of frames in all transition history(sequence) samples, with default sampling rate 10 frames per second.
 
 ## Further work
 TransNet serves as the primary data source for the on-going project "Pedestrian Stop and Go Forecasting" in [VITA](https://www.epfl.ch/labs/vita/).
