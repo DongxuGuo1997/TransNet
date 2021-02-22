@@ -130,11 +130,10 @@ def extract_pred_frame(history, pred_ahead=0, balancing_ratio=None, seed=None, v
                 samples[key]['action'] = action[i]
                 samples[key]['trans_label'] = trans_label
     if verbose:
-
         print(f'Extract {len(samples.keys())} frame samples from {len(history.keys())} history sequences.')
         print('1/0 ratio:  1 : {:.2f}'.format((len(samples.keys()) - n_1) / n_1))
         print(f'predicting-ahead frames: {pred_ahead}')
-
+        
     if balancing_ratio is not None:
         samples = balance_frame_sample(samples=samples, seed=seed, balancing_ratio=balancing_ratio, verbose=verbose)
 
