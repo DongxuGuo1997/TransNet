@@ -1,8 +1,4 @@
-from .jaad_trans import *
-from .pie_trans import *
-from .titan_trans import *
-
-
+import random
 from .jaad_trans import *
 from .pie_trans import *
 from .titan_trans import *
@@ -76,7 +72,36 @@ class TransDataset:
         return samples
 
 
-def extract_pred_frame(history, pred_ahead=0, verbose=False) -> dict:
+def balance_frame_sample(samples, seed, balancing_ratio=1, verbose=True):
+    random.seed(seed)
+    ids = list(samples.keys())
+    ps = []
+    ns = []
+    for i in range(len(ids)):
+        key = ids[i]
+        if samples[key]['trans_label'] == 1:
+            ps.append(key)
+        else:
+            ns.append(key)
+    size = int(min(len(ps), len(ns)) * balancing_ratio)
+    size = max(len(ps), len(ns)) if size > max(len(ps), len(ns)) else size
+    ps_new = random.sample(ps, size) if len(ps) > len(ns) else ps
+    ns_new = random.sample(ns, size) if len(ps) < len(ns) else ns
+    ids_new = ps_new + ns_new
+    random.shuffle(ids_new)
+    samples_new = {}
+    for key in ids_new:
+        samples_new[key] = copy.deepcopy(samples[key])
+
+    if verbose:
+        print("Perform sample balancing:")
+        print(f'Orignal samples: P {len(ps)} , N {len(ns)}')
+        print(f'Balanced samples:P {len(ps_new)}, N {len(ns_new)}')
+
+    return samples_new
+
+
+def extract_pred_frame(history, pred_ahead=0, balancing_ratio=None, seed=None, verbose=False) -> dict:
     assert isinstance(pred_ahead, int) and pred_ahead >= 0, "Invalid prediction length."
     ids = list(history.keys())
     samples = {}
@@ -87,15 +112,13 @@ def extract_pred_frame(history, pred_ahead=0, verbose=False) -> dict:
         action = copy.deepcopy(history[idx]['action'])
         d_pre = history[idx]['pre_state']
         n_frames = len(frames)
-        key = None
-        for i in range(n_frames):
-            if d_pre >= pred_ahead:
-                key = idx + f"_f{frames[i]}"
-                if i < n_frames - pred_ahead:
-                    trans_label = 0
-                else:
-                    trans_label = 1
-                    n_1 += 1
+        for i in range(max(0, n_frames - d_pre), n_frames):
+            key = idx + f"_f{frames[i]}"
+            if pred_ahead < n_frames and frames[i] < frames[n_frames - pred_ahead]:
+                trans_label = 0
+            else:
+                trans_label = 1
+                n_1 += 1
             if key is not None:
                 samples[key] = {}
                 samples[key]['source'] = history[idx]['source']
@@ -107,7 +130,12 @@ def extract_pred_frame(history, pred_ahead=0, verbose=False) -> dict:
                 samples[key]['action'] = action[i]
                 samples[key]['trans_label'] = trans_label
     if verbose:
+
         print(f'Extract {len(samples.keys())} frame samples from {len(history.keys())} history sequences.')
-        print(f'1/0 ratio is 1 : {(len(samples.keys()) - n_1) / n_1} ; prediction length:{pred_ahead}')
+        print('1/0 ratio:  1 : {:.2f}'.format((len(samples.keys()) - n_1) / n_1))
+        print(f'predicting-ahead frames: {pred_ahead}')
+
+    if balancing_ratio is not None:
+        samples = balance_frame_sample(samples=samples, seed=seed, balancing_ratio=balancing_ratio, verbose=verbose)
 
     return samples

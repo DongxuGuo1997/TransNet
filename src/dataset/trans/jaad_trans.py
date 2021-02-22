@@ -234,6 +234,7 @@ class JaadTransDataset:
                     samples[key]['cross'] = cross[i - t_ahead]
                     samples[key]['frame_ahead'] = frame_ahead
                     samples[key]['type'] = mode
+                    samples[key]['fps'] = fps
         if verbose:
             print(f"Extract {len(samples.keys())} {mode} sample frames from JAAD {self.name} set")
 
@@ -271,9 +272,9 @@ class JaadTransDataset:
                         new_id = "{:04d}".format(j) + "_" + self.name
                         key = "JG_" + new_id
                         old_id = idx
-                        d_pre = 1
-                        while action[i - d_pre * step] == 0:
-                            d_pre += 1
+                        ae = np.array(action[i::-step])
+                        ce = np.array(np.nonzero(ae == 1))
+                        d_pre = ce[0][1] - 1 if ce.size > 1 else len(ae) - 1
                         ap = np.array(action[i::step])
                         cp = np.array(np.nonzero(ap == 0))
                         d_pos = cp[0][0] if cp.size > 0 else len(ap)
@@ -283,9 +284,9 @@ class JaadTransDataset:
                         new_id = "{:04d}".format(j) + "_" + self.name
                         key = "JS_" + new_id
                         old_id = idx
-                        d_pre = 1
-                        while action[i - d_pre * step] == 1:
-                            d_pre += 1
+                        ae = np.array(action[i::-step])
+                        ce = np.array(np.nonzero(ae == 0))
+                        d_pre = ce[0][1] - 1 if ce.size > 1 else len(ae) - 1
                         ap = np.array(action[i::step])
                         cp = np.array(np.nonzero(ap == 1))
                         d_pos = cp[0][0] if cp.size > 0 else len(ap)
@@ -293,7 +294,7 @@ class JaadTransDataset:
                     if max_frames is None:
                         t = None
                     else:
-                        t = i - max_frames * step if (i - max_frames >= 0) else None
+                        t = i - max_frames * step if (i - max_frames * step >= 0) else None
                     samples[key] = {}
                     samples[key]["source"] = "JAAD"
                     samples[key]["old_id"] = old_id
@@ -304,11 +305,10 @@ class JaadTransDataset:
                     samples[key]['bbox'].reverse()
                     samples[key]['action'] = action[i:t:-step]
                     samples[key]['action'].reverse()
-                    # samples[key]['cross'] = cross[i:t:-step]
-                    # samples[key]['cross'].reverse()
-                    samples[key]['pre_state'] = d_pre - 1
+                    samples[key]['pre_state'] = d_pre
                     samples[key]['post_state'] = d_pos
                     samples[key]['type'] = mode
+                    samples[key]['fps'] = fps
         if verbose:
             keys = list(samples.keys())
             pids = []
