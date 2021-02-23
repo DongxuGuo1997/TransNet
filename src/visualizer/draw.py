@@ -11,7 +11,14 @@ def load_image(path, scale=1.0):
         image = np.asarray(image) * scale / 255.0
         return image
 
+    
+def plot_image_tensor(img_tensor):
+    Tensor2PIL = torchvision.transforms.ToPILImage(mode='RGB')
+    pil_img = Tensor2PIL(img_tensor)
+    cv2_img = cv2.cvtColor(np.array(pil_img), cv2.COLOR_RGB2BGR)
+    plt.imshow(cv2.cvtColor(cv2_img, cv2.COLOR_BGR2RGB), aspect='equal')
 
+    
 def draw_ped_ann(image, bbox, action):
     thickness = 2
     start_point = (int(bbox[0]), int(bbox[1]))
@@ -76,3 +83,5 @@ class BaseVisualizer:
             cv2.imshow(title, image)
             cv2.waitKey(wait_key)
             cv2.destroyAllWindows()
+
+            

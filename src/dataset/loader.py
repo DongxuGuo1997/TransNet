@@ -39,6 +39,7 @@ class FrameDataset(torch.utils.data.Dataset):
         frame = self.samples[idx]['frame']
         bbox = copy.deepcopy(self.samples[idx]['bbox'])
         source = self.samples[idx]["source"]
+        anns = {'bbox': bbox, 'source': source}
         if 'trans_label' in list(self.samples[idx].keys()):
             label = self.samples[idx]['trans_label']
         else:
@@ -59,9 +60,11 @@ class FrameDataset(torch.utils.data.Dataset):
         with open(image_path, 'rb') as f:
             img = PIL.Image.open(f).convert('RGB')
         if self.preprocess is not None:
-            img, bbox = self.preprocess(img, bbox)
+            img, anns = self.preprocess(img, anns)
         img_tensor = torchvision.transforms.ToTensor()(img)
-        sample = {'image': img_tensor, 'bbox': bbox, 'id': idx, 'label': label}
+        label = torch.tensor(label)
+        label = label.to(torch.float32)
+        sample = {'image': img_tensor, 'bbox': anns['bbox'], 'id': idx, 'label': label}
 
         return sample
 

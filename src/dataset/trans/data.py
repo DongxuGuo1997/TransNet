@@ -112,9 +112,12 @@ def extract_pred_frame(history, pred_ahead=0, balancing_ratio=None, seed=None, v
         action = copy.deepcopy(history[idx]['action'])
         d_pre = history[idx]['pre_state']
         n_frames = len(frames)
-        for i in range(max(0, n_frames - d_pre), n_frames):
+        fps = history[idx]['fps']
+        source = history[idx]['source']
+        step = 60 // fps if source == 'TITAN' else 30 // fps
+        for i in range(max(0, n_frames - d_pre), n_frames-1):
             key = idx + f"_f{frames[i]}"
-            if pred_ahead < n_frames and frames[i] < frames[n_frames - pred_ahead]:
+            if pred_ahead < n_frames and frames[i] < frames[-1] - pred_ahead * step:
                 trans_label = 0
             else:
                 trans_label = 1
@@ -130,9 +133,13 @@ def extract_pred_frame(history, pred_ahead=0, balancing_ratio=None, seed=None, v
                 samples[key]['action'] = action[i]
                 samples[key]['trans_label'] = trans_label
     if verbose:
+        if n_1 > 0:
+            ratio = (len(samples.keys()) - n_1) / n_1
+        else:
+            ratio = 999
         print(f'Extract {len(samples.keys())} frame samples from {len(history.keys())} history sequences.')
-        print('1/0 ratio:  1 : {:.2f}'.format((len(samples.keys()) - n_1) / n_1))
-        print(f'predicting-ahead frames: {pred_ahead}')
+        print('1/0 ratio:  1 : {:.2f}'.format(ratio))
+        print(f'predicting-ahead frames: {pred_ahead} , with fps={fps}')
         
     if balancing_ratio is not None:
         samples = balance_frame_sample(samples=samples, seed=seed, balancing_ratio=balancing_ratio, verbose=verbose)
