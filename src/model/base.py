@@ -75,8 +75,6 @@ class ResnetBlocks():
                            block4)
         if pifpaf_bn:
             backbone_net.apply(use_pifpaf_bn)
-
-        
         
         # return backbone
         return backbone_net
