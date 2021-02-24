@@ -132,6 +132,7 @@ def extract_pred_frame(history, pred_ahead=0, balancing_ratio=None, seed=None, v
                 samples[key]['bbox'] = bbox[i]
                 samples[key]['action'] = action[i]
                 samples[key]['trans_label'] = trans_label
+                samples[key]['TTE'] = (frames[-1] - frames[i]) / (step * fps)
     if verbose:
         if n_1 > 0:
             ratio = (len(samples.keys()) - n_1) / n_1
@@ -145,3 +146,31 @@ def extract_pred_frame(history, pred_ahead=0, balancing_ratio=None, seed=None, v
         samples = balance_frame_sample(samples=samples, seed=seed, balancing_ratio=balancing_ratio, verbose=verbose)
 
     return samples
+
+
+def record_trans_stats(samples):
+    j_pre = []
+    p_pre = []
+    t_pre = []
+    j_pos = []
+    p_pos = []
+    t_pos = []
+    fps = []
+    ids = list(samples.keys())
+    for idx in ids:
+        fps.append(samples[idx]['fps'])
+        if samples[idx]['source'] == 'JAAD':
+            j_pre.append(samples[idx]['pre_state'])
+            j_pos.append(samples[idx]['post_state'])  
+        elif samples[idx]['source'] == 'PIE':
+            p_pre.append(samples[idx]['pre_state'] )
+            p_pos.append(samples[idx]['post_state'])
+        elif samples[idx]['source'] == 'TITAN':
+            t_pre.append(samples[idx]['pre_state'] )
+            t_pos.append(samples[idx]['post_state'])
+
+    pre = {'JAAD': j_pre, 'PIE': p_pre, 'TITAN': t_pre}
+    pos = {'JAAD': j_pos, 'PIE': p_pos, 'TITAN': t_pos}
+    trans_stats = {'Pre': pre, 'Pos': pos, 'fps': fps}
+    
+    return trans_stats
