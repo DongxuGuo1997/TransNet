@@ -1,6 +1,6 @@
 import torch
 from abc import ABCMeta, abstractmethod
-from .preprocess_crop import *
+from .transforms import *
 
 
 class Preprocess(metaclass=ABCMeta):
@@ -59,3 +59,31 @@ class ImageTransform(Preprocess):
         image = self.image_transform(image)
 
         return image, anns
+
+    
+class DownSizeFrame(Preprocess):
+    def __init__(self, width, height):
+        self.width = width
+        self.height = height
+
+    def __call__(self, image, anns):
+        source = anns['source']
+        bbox = copy.deepcopy(anns['bbox'])
+        if source in ['JAAD', 'PIE']:
+            image, anns['bbox'] = crop_and_rescale(image, bbox, 1 / 3, self.width, self.height)
+        elif source == 'TITAN':
+            image, anns['bbox'] = crop_and_rescale(image, bbox, 1 / 5, self.width, self.height)
+
+        return image, anns
+
+
+class RandomHflip(Preprocess):
+    def __init__(self, p=0.5):
+        self.probability = p
+
+    def __call__(self, image, anns):
+        bbox = copy.deepcopy(anns['bbox'])
+        image, anns['bbox'] = random_flip(image, bbox, self.probability)
+
+        return image, anns
+

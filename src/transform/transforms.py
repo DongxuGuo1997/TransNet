@@ -135,3 +135,34 @@ def jitter_bbox(img, bbox, mode, ratio):
         jit_box = bbox_sanity_check(img, b)
 
     return jit_box
+
+
+def crop_and_rescale(image, bbox, cropping_ratio, width, height):
+    # crop the top 1/3 of image
+    w, h = image.size
+    image = image.crop((0, h * cropping_ratio, w, h))
+    # rescale
+    image_new = image.resize((width, height), PIL.Image.BICUBIC)
+    # compute new bbox
+    scale_x = width / w
+    scale_y = height / h / (1 - cropping_ratio)
+    x1 = bbox[0] * scale_x
+    y1 = (bbox[1] - h * cropping_ratio) * scale_y
+    x2 = bbox[2] * scale_x
+    y2 = (bbox[3] - h * cropping_ratio) * scale_y
+    bbox_new = [int(x1), int(y1), int(x2), int(y2)]
+
+    return image_new, bbox_new
+
+
+def random_flip(image, bbox, probability):
+    if float(torch.rand(1).item()) < probability:
+        image = image.transpose(PIL.Image.FLIP_LEFT_RIGHT)
+        w, h = image.size
+        # box_w = abs(bbox[0] - bbox[2])
+        x_max = w - bbox[0]
+        x_min = w - bbox[2]
+        bbox[0] = x_min
+        bbox[2] = x_max
+
+    return image, bbox
