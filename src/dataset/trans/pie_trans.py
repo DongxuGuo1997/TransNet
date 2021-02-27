@@ -224,7 +224,6 @@ class PieTransDataset:
             frames = copy.deepcopy(dataset[idx]['frames'])
             bbox = copy.deepcopy(dataset[idx]['bbox'])
             action = copy.deepcopy(dataset[idx]['action'])
-            cross = copy.deepcopy(dataset[idx]['cross'])
             next_transition = copy.deepcopy(dataset[idx]["next_transition"])
             for i in range(len(frames)):
                 key = None
@@ -284,5 +283,67 @@ class PieTransDataset:
                 num_frames += len(samples[k]['frame'])
             print(f"Extract {len(pids)} {mode} history samples from {self.name} dataset in PIE ,")
             print(f"samples contain {len(set(pids))} unique pedestrians and {num_frames} frames.")
+
+        return samples
+
+    def extract_non_trans(self, fps=30, max_frames=None, verbose=False):
+        dataset = self.dataset
+        ids = list(dataset.keys())
+        samples = {'walking': {}, 'standing': {}}
+        step = 30 // fps
+        assert isinstance(step, int)
+        jw = 0
+        js = 0
+        t = max_frames * step if max_frames is not None else None
+        for idx in ids:
+            sid = copy.deepcopy(dataset[idx]['set_number'])
+            vid_id = copy.deepcopy(dataset[idx]['video_number'])
+            frames = copy.deepcopy(dataset[idx]['frames'])
+            bbox = copy.deepcopy(dataset[idx]['bbox'])
+            action = copy.deepcopy(dataset[idx]['action'])
+            a = np.array(action)  # action array
+            key = None
+            action_type = None
+            old_id = None
+            if a[a < 0.5].size == 0:  # all walking
+                jw += 1
+                new_id = "{:04d}".format(jw) + "_" + self.name
+                key = "PW_" + new_id
+                old_id = idx
+                action_type = 'walking'
+            elif a[a > 0.5].size == 0:  # all standing
+                js += 1
+                new_id = "{:04d}".format(js) + "_" + self.name
+                key = "PN_" + new_id
+                old_id = idx
+                action_type = 'standing'
+            if key is not None:
+                samples[action_type][key] = {}
+                samples[action_type][key]["source"] = "PIE"
+                samples[action_type][key]["old_id"] = old_id
+                samples[action_type][key]['video_number'] = vid_id
+                samples[action_type][key]['set_number'] = sid
+                samples[action_type][key]['frame'] = frames[:t:step]
+                samples[action_type][key]['bbox'] = bbox[:t:step]
+                samples[action_type][key]['action'] = action[:t:step]
+                samples[action_type][key]['action_type'] = action_type
+                samples[action_type][key]['fps'] = fps
+
+        if verbose:
+            keys_w = list(samples['walking'].keys())
+            keys_s = list(samples['standing'].keys())
+            pid_w = []
+            pid_s = []
+            n_w = 0
+            n_s = 0
+            for kw in keys_w:
+                pid_w.append(samples['walking'][kw]['old_id'])
+                n_w += len(samples['walking'][kw]['frame'])
+            for ks in keys_s:
+                pid_s.append(samples['standing'][ks]['old_id'])
+                n_s += len(samples['standing'][ks]['frame'])
+            print(f"Extract None-transition samples from {self.name} dataset in PIE :")
+            print(f"Walking: {len(pid_w)} samples,  {len(set(pid_w))} unique pedestrians and {n_w} frames.")
+            print(f"Standing: {len(pid_s)} samples,  {len(set(pid_s))} unique pedestrians and {n_s} frames.")
 
         return samples

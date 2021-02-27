@@ -71,6 +71,44 @@ class TransDataset:
 
         return samples
 
+    def extract_non_trans(self, fps=10, max_frames=None, verbose=False) -> dict:
+        assert isinstance(fps, int) and 30 % fps == 0, "impossible fps"
+        ds = list(self.dataset.keys())
+        samples = {'walking': {}, 'standing': {}}
+        for d in ds:
+            if len(ds) > 1 and d == 'TITAN':
+                if self.name == 'all':
+                    n_titan = 600
+                elif self.name == 'train':
+                    n_titan = 300
+                elif self.name == 'val':
+                    n_titan = 200
+                else:
+                    n_titan = 100
+                samples_new = self.dataset[d].extract_non_trans(fps=fps, max_frames=max_frames, max_samples=n_titan)
+            else:
+                samples_new = self.dataset[d].extract_non_trans(fps=fps, max_frames=max_frames)
+            samples['walking'].update(samples_new['walking'])
+            samples['standing'].update(samples_new['standing'])
+        if verbose:
+            keys_w = list(samples['walking'].keys())
+            keys_s = list(samples['standing'].keys())
+            pid_w = []
+            pid_s = []
+            n_w = 0
+            n_s = 0
+            for kw in keys_w:
+                pid_w.append(samples['walking'][kw]['old_id'])
+                n_w += len(samples['walking'][kw]['frame'])
+            for ks in keys_s:
+                pid_s.append(samples['standing'][ks]['old_id'])
+                n_s += len(samples['standing'][ks]['frame'])
+            print(f"Extract None-transition samples from {self.name} dataset  :")
+            print(f"Walking: {len(pid_w)} samples,  {len(set(pid_w))} unique pedestrians and {n_w} frames.")
+            print(f"Standing: {len(pid_s)} samples,  {len(set(pid_s))} unique pedestrians and {n_s} frames.")
+
+        return samples
+
 
 def balance_frame_sample(samples, seed, balancing_ratio=1, verbose=True):
     random.seed(seed)
@@ -101,21 +139,21 @@ def balance_frame_sample(samples, seed, balancing_ratio=1, verbose=True):
     return samples_new
 
 
-def extract_pred_frame(history, pred_ahead=0, balancing_ratio=None, seed=None, verbose=False) -> dict:
+def extract_pred_frame(trans, non_trans=None, pred_ahead=0, balancing_ratio=None, seed=None, verbose=False) -> dict:
     assert isinstance(pred_ahead, int) and pred_ahead >= 0, "Invalid prediction length."
-    ids = list(history.keys())
+    ids_trans = list(trans.keys())
     samples = {}
     n_1 = 0
-    for idx in ids:
-        frames = copy.deepcopy(history[idx]['frame'])
-        bbox = copy.deepcopy(history[idx]['bbox'])
-        action = copy.deepcopy(history[idx]['action'])
-        d_pre = history[idx]['pre_state']
+    for idx in ids_trans:
+        frames = copy.deepcopy(trans[idx]['frame'])
+        bbox = copy.deepcopy(trans[idx]['bbox'])
+        action = copy.deepcopy(trans[idx]['action'])
+        d_pre = trans[idx]['pre_state']
         n_frames = len(frames)
-        fps = history[idx]['fps']
-        source = history[idx]['source']
+        fps = trans[idx]['fps']
+        source = trans[idx]['source']
         step = 60 // fps if source == 'TITAN' else 30 // fps
-        for i in range(max(0, n_frames - d_pre), n_frames-1):
+        for i in range(max(0, n_frames - d_pre), n_frames - 1):
             key = idx + f"_f{frames[i]}"
             if pred_ahead < n_frames and frames[i] < frames[-1] - pred_ahead * step:
                 trans_label = 0
@@ -124,24 +162,45 @@ def extract_pred_frame(history, pred_ahead=0, balancing_ratio=None, seed=None, v
                 n_1 += 1
             if key is not None:
                 samples[key] = {}
-                samples[key]['source'] = history[idx]['source']
+                samples[key]['source'] = trans[idx]['source']
                 if samples[key]['source'] == 'PIE':
-                    samples[key]['set_number'] = history[idx]['set_number']
-                samples[key]['video_number'] = history[idx]['video_number']
+                    samples[key]['set_number'] = trans[idx]['set_number']
+                samples[key]['video_number'] = trans[idx]['video_number']
                 samples[key]['frame'] = frames[i]
                 samples[key]['bbox'] = bbox[i]
                 samples[key]['action'] = action[i]
                 samples[key]['trans_label'] = trans_label
                 samples[key]['TTE'] = (frames[-1] - frames[i]) / (step * fps)
+    # negative instances from all examples
+    if non_trans is not None:
+        action_type = 'walking' if trans[ids_trans[0]]['type'] == 'STOP' else 'standing'
+        ids_non_trans = list(non_trans[action_type].keys())
+        for idx in ids_non_trans:
+            frames = copy.deepcopy(non_trans[action_type][idx]['frame'])
+            bbox = copy.deepcopy(non_trans[action_type][idx]['bbox'])
+            action = copy.deepcopy(non_trans[action_type][idx]['action'])
+            for i in range(len(frames)):
+                key = idx + f"_f{frames[i]}"
+                samples[key] = {}
+                samples[key]['source'] = non_trans[action_type][idx]['source']
+                if samples[key]['source'] == 'PIE':
+                    samples[key]['set_number'] = non_trans[action_type][idx]['set_number']
+                samples[key]['video_number'] = non_trans[action_type][idx]['video_number']
+                samples[key]['frame'] = frames[i]
+                samples[key]['bbox'] = bbox[i]
+                samples[key]['action'] = action[i]
+                samples[key]['trans_label'] = 0
+                samples[key]['TTE'] = None
+
     if verbose:
         if n_1 > 0:
             ratio = (len(samples.keys()) - n_1) / n_1
         else:
-            ratio = 999
-        print(f'Extract {len(samples.keys())} frame samples from {len(history.keys())} history sequences.')
+            ratio = 999.99
+        print(f'Extract {len(samples.keys())} frame samples from {len(trans.keys())} history sequences.')
         print('1/0 ratio:  1 : {:.2f}'.format(ratio))
-        print(f'predicting-ahead frames: {pred_ahead} , with fps={fps}')
-        
+        print(f'predicting-ahead frames: {pred_ahead}')
+
     if balancing_ratio is not None:
         samples = balance_frame_sample(samples=samples, seed=seed, balancing_ratio=balancing_ratio, verbose=verbose)
 
@@ -161,16 +220,36 @@ def record_trans_stats(samples):
         fps.append(samples[idx]['fps'])
         if samples[idx]['source'] == 'JAAD':
             j_pre.append(samples[idx]['pre_state'])
-            j_pos.append(samples[idx]['post_state'])  
+            j_pos.append(samples[idx]['post_state'])
         elif samples[idx]['source'] == 'PIE':
-            p_pre.append(samples[idx]['pre_state'] )
+            p_pre.append(samples[idx]['pre_state'])
             p_pos.append(samples[idx]['post_state'])
         elif samples[idx]['source'] == 'TITAN':
-            t_pre.append(samples[idx]['pre_state'] )
+            t_pre.append(samples[idx]['pre_state'])
             t_pos.append(samples[idx]['post_state'])
 
     pre = {'JAAD': j_pre, 'PIE': p_pre, 'TITAN': t_pre}
     pos = {'JAAD': j_pos, 'PIE': p_pos, 'TITAN': t_pos}
     trans_stats = {'Pre': pre, 'Pos': pos, 'fps': fps}
-    
+
     return trans_stats
+
+
+def sequence_to_frame(sequence):
+    samples = {}
+    frames = copy.deepcopy(sequence['frame'])
+    bbox = copy.deepcopy(sequence['bbox'])
+    action = copy.deepcopy(sequence['action'])
+    n_frames = len(frames)
+    for i in range(n_frames):
+        key = f'f_{frames[i]}'
+        samples[key] = {}
+        samples[key]['source'] = sequence['source']
+        if samples[key]['source'] == 'PIE':
+            samples[key]['set_number'] = sequence['set_number']
+        samples[key]['video_number'] = sequence['video_number']
+        samples[key]['frame'] = frames[i]
+        samples[key]['bbox'] = bbox[i]
+        samples[key]['action'] = action[i]
+
+    return samples

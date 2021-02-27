@@ -6,11 +6,11 @@ import copy
 
 def get_split_vids_titan(split_vids_path, image_set="all") -> list:
     """
-    Returns a list of video ids for a given data split
-    :param:  split_vids_path: path of TITAN split
-             image_set: Data split, train, test, val
-    :return: The list of video ids
-    """
+        Returns a list of video ids for a given data split
+        :param:  split_vids_path: path of TITAN split
+                image_set: Data split, train, test, val
+        :return: The list of video ids
+        """
     assert image_set in ["train", "test", "val", "all"]
     vid_ids = []
     sets = [image_set + '_set'] if image_set != 'all' else ['train_set', 'test_set', 'val_set']
@@ -100,8 +100,18 @@ def convert_anns_titan(anns_dir, vids) -> dict:
                     break
             anns[idx]['video_number'] = vid
             anns[idx]['old_id'] = vid + f'_{pids[i]}'
+        anns_new = {}
+        ids = list(anns.keys())
+        for k in ids:
+            if len(anns[k]['action']) > 0:
+                anns_new[k] = {}
+                anns_new[k]['frames'] = anns[k]['frames']
+                anns_new[k]['bbox'] = anns[k]['bbox']
+                anns_new[k]['action'] = anns[k]['action']
+                anns_new[k]['old_id'] = anns[k]['old_id']
+                anns_new[k]['video_number'] = anns[k]['video_number']
 
-    return anns
+    return anns_new
 
 
 def add_trans_label_titan(anns, verbose=False) -> None:
@@ -181,6 +191,8 @@ class TitanTransDataset:
             frames = copy.deepcopy(dataset[idx]['frames'])
             bbox = copy.deepcopy(dataset[idx]['bbox'])
             action = copy.deepcopy(dataset[idx]['action'])
+            # old_id = copy.deepcopy(dataset[idx]['old_id'])
+            # cross = copy.deepcopy(dataset[idx]['cross'])
             next_transition = copy.deepcopy(dataset[idx]["next_transition"])
             for i in range(len(frames)):
                 key = None
@@ -201,9 +213,9 @@ class TitanTransDataset:
                     samples[key]["source"] = "TITAN"
                     samples[key]["old_id"] = old_id
                     samples[key]['video_number'] = vid_id
-                    samples[key]['frame'] = frames[i-t_ahead]
-                    samples[key]['bbox'] = bbox[i-t_ahead]
-                    samples[key]['action'] = action[i-t_ahead]
+                    samples[key]['frame'] = frames[i - t_ahead]
+                    samples[key]['bbox'] = bbox[i - t_ahead]
+                    samples[key]['action'] = action[i - t_ahead]
                     samples[key]['frame_ahead'] = frame_ahead
                     samples[key]['type'] = mode
                     samples[key]['fps'] = fps
@@ -231,6 +243,8 @@ class TitanTransDataset:
             frames = copy.deepcopy(dataset[idx]['frames'])
             bbox = copy.deepcopy(dataset[idx]['bbox'])
             action = copy.deepcopy(dataset[idx]['action'])
+            # old_id = copy.deepcopy(dataset[idx]['old_id'])
+            # cross = copy.deepcopy(dataset[idx]['cross'])
             next_transition = copy.deepcopy(dataset[idx]["next_transition"])
             for i in range(len(frames)):
                 key = None
@@ -288,3 +302,74 @@ class TitanTransDataset:
             print(f"samples contain {len(set(pids))} unique pedestrians and {num_frames} frames.")
 
         return samples
+
+    def extract_non_trans(self, fps=10, max_frames=None, max_samples=None, verbose=False):
+        dataset = self.dataset
+        ids = list(dataset.keys())
+        samples = {'walking': {}, 'standing': {}}
+        step = 10 // fps
+        assert isinstance(step, int)
+        jw = 0
+        js = 0
+        t = max_frames * step if max_frames is not None else None
+        for idx in ids:
+            vid_id = copy.deepcopy(dataset[idx]['video_number'])
+            frames = copy.deepcopy(dataset[idx]['frames'])
+            bbox = copy.deepcopy(dataset[idx]['bbox'])
+            action = copy.deepcopy(dataset[idx]['action'])
+            a = np.array(action)  # action array
+            key = None
+            action_type = None
+            old_id = None
+            if a[a < 0.5].size == 0:  # all walking
+                jw += 1
+                new_id = "{:04d}".format(jw) + "_" + self.name
+                key = "TW_" + new_id
+                old_id = idx
+                action_type = 'walking'
+            elif a[a > 0.5].size == 0:  # all standing
+                js += 1
+                new_id = "{:04d}".format(js) + "_" + self.name
+                key = "TN_" + new_id
+                old_id = idx
+                action_type = 'standing'
+            if key is not None:
+                samples[action_type][key] = {}
+                samples[action_type][key]["source"] = "TITAN"
+                samples[action_type][key]["old_id"] = old_id
+                samples[action_type][key]['video_number'] = vid_id
+                samples[action_type][key]['frame'] = frames[:t:step]
+                samples[action_type][key]['bbox'] = bbox[:t:step]
+                samples[action_type][key]['action'] = action[:t:step]
+                samples[action_type][key]['action_type'] = action_type
+                samples[action_type][key]['fps'] = fps
+        samples_new = {'walking': {}, 'standing': {}}
+        if max_samples is not None:
+            keys_w = list(samples['walking'].keys())[:max_samples]
+            keys_s = list(samples['standing'].keys())[:max_samples]
+            for kw in keys_w:
+                samples_new['walking'][kw] = samples['walking'][kw]
+            for ks in keys_s:
+                samples_new['standing'][ks] = samples['standing'][ks]
+        else:
+            samples_new = samples
+
+        if verbose:
+            keys_w = list(samples_new['walking'].keys())
+            keys_s = list(samples_new['standing'].keys())
+            pid_w = []
+            pid_s = []
+            n_w = 0
+            n_s = 0
+            for kw in keys_w:
+                pid_w.append(samples_new['walking'][kw]['old_id'])
+                n_w += len(samples_new['walking'][kw]['frame'])
+            for ks in keys_s:
+                pid_s.append(samples_new['standing'][ks]['old_id'])
+                n_s += len(samples_new['standing'][ks]['frame'])
+
+            print(f"Extract None-transition samples from {self.name} dataset in TITAN :")
+            print(f"Walking: {len(pid_w)} samples,  {len(set(pid_w))} unique pedestrians and {n_w} frames.")
+            print(f"Standing: {len(pid_s)} samples,  {len(set(pid_s))} unique pedestrians and {n_s} frames.")
+
+        return samples_new

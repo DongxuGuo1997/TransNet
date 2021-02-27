@@ -62,14 +62,12 @@ class FrameDataset(torch.utils.data.Dataset):
         if self.preprocess is not None:
             img, anns = self.preprocess(img, anns)
         img_tensor = torchvision.transforms.ToTensor()(img)
-        label = torch.tensor(label)
-        label = label.to(torch.float32)
+        if label is not None:
+            label = torch.tensor(label)
+            label = label.to(torch.float32)
         sample = {'image': img_tensor, 'bbox': anns['bbox'], 'id': idx, 'label': label}
 
         return sample
-
-    def __len__(self):
-        return len(self.samples.keys())
 
 
 class SequenceDataset(torch.utils.data.Dataset):
