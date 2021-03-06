@@ -155,8 +155,10 @@ def extract_pred_frame(trans, non_trans=None, pred_ahead=0, balancing_ratio=None
         step = 60 // fps if source == 'TITAN' else 30 // fps
         for i in range(max(0, n_frames - d_pre), n_frames - 1):
             key = idx + f"_f{frames[i]}"
-            if pred_ahead < n_frames and frames[i] < frames[-1] - pred_ahead * step:
+            TTE = (frames[-1] - frames[i]) / (step * fps)
+            if TTE > pred_ahead / fps:
                 trans_label = 0
+                key = None       
             else:
                 trans_label = 1
                 n_1 += 1
@@ -170,7 +172,7 @@ def extract_pred_frame(trans, non_trans=None, pred_ahead=0, balancing_ratio=None
                 samples[key]['bbox'] = bbox[i]
                 samples[key]['action'] = action[i]
                 samples[key]['trans_label'] = trans_label
-                samples[key]['TTE'] = (frames[-1] - frames[i]) / (step * fps)
+                samples[key]['TTE'] = TTE
     # negative instances from all examples
     if non_trans is not None:
         action_type = 'walking' if trans[ids_trans[0]]['type'] == 'STOP' else 'standing'
