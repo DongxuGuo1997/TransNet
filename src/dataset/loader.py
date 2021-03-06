@@ -2,6 +2,7 @@ import os
 import copy
 import PIL
 import torch
+import torchvision
 
 
 class ImageList(torch.utils.data.Dataset):

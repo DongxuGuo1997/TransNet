@@ -83,5 +83,3 @@ class BaseVisualizer:
             cv2.imshow(title, image)
             cv2.waitKey(wait_key)
             cv2.destroyAllWindows()
-
-            
