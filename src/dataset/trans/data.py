@@ -209,6 +209,80 @@ def extract_pred_frame(trans, non_trans=None, pred_ahead=0, balancing_ratio=None
     return samples
 
 
+def get_pred_frame(trans, non_trans=None, pred_time=1.0, dp1=0.0, dp2=0.0, dn=1.0,
+                   balancing_ratio = None, seed=99, verbose=False) -> dict:
+    assert isinstance(pred_time, float) and pred_time >= 0, "Invalid prediction horizon."
+    ids_trans = list(trans.keys())
+    samples = {}
+    n_1 = 0
+    n_2 = 0
+    n_3 = 0
+    for idx in ids_trans:
+        frames = copy.deepcopy(trans[idx]['frame'])
+        bbox = copy.deepcopy(trans[idx]['bbox'])
+        action = copy.deepcopy(trans[idx]['action'])
+        d_pre = trans[idx]['pre_state']
+        n_frames = len(frames)
+        fps = trans[idx]['fps']
+        source = trans[idx]['source']
+        step = 60 // fps if source == 'TITAN' else 30 // fps
+        for i in range(max(0, n_frames - d_pre), n_frames - 1):
+            key = idx + f"_f{frames[i]}"
+            TTE = (frames[-1] - frames[i]) / (step * fps)
+            if pred_time - dp1 <= TTE <= pred_time + dp2:
+                trans_label = 1
+                n_1 += 1
+            elif pred_time + dn <= TTE < pred_time + dn + 0.07:
+                trans_label = 0
+                n_2 += 1
+            else:
+                key = None
+            if key is not None:
+                samples[key] = {}
+                samples[key]['source'] = trans[idx]['source']
+                if samples[key]['source'] == 'PIE':
+                    samples[key]['set_number'] = trans[idx]['set_number']
+                samples[key]['video_number'] = trans[idx]['video_number']
+                samples[key]['frame'] = frames[i]
+                samples[key]['bbox'] = bbox[i]
+                samples[key]['action'] = action[i]
+                samples[key]['trans_label'] = trans_label
+                samples[key]['TTE'] = TTE
+    # negative instances from all examples
+    if non_trans is not None:
+        action_type = 'walking' if trans[ids_trans[0]]['type'] == 'STOP' else 'standing'
+        ids_non_trans = list(non_trans[action_type].keys())
+        for idx in ids_non_trans:
+            frames = copy.deepcopy(non_trans[action_type][idx]['frame'])
+            bbox = copy.deepcopy(non_trans[action_type][idx]['bbox'])
+            action = copy.deepcopy(non_trans[action_type][idx]['action'])
+            i = -1
+            key = idx + f"_f{frames[i]}"
+            samples[key] = {}
+            samples[key]['source'] = non_trans[action_type][idx]['source']
+            if samples[key]['source'] == 'PIE':
+                samples[key]['set_number'] = non_trans[action_type][idx]['set_number']
+            samples[key]['video_number'] = non_trans[action_type][idx]['video_number']
+            samples[key]['frame'] = frames[i]
+            samples[key]['bbox'] = bbox[i]
+            samples[key]['action'] = action[i]
+            samples[key]['trans_label'] = 0
+            samples[key]['TTE'] = -1
+            n_3 += 1
+
+    if verbose:
+        print(f'Extract {n_1} positive frames from {len(trans.keys())} transition samples.')
+        print(f'Extract {n_2} negative frames samples from transition samples .')
+        if non_trans is not None:
+            print(f'Extract {n_3} negative frames samples from non-transition samples .')
+        print(f'predicting horizon in time: {pred_time}s')
+
+    if balancing_ratio is not None:
+        samples = balance_frame_sample(samples=samples, seed=seed, balancing_ratio=balancing_ratio, verbose=verbose)
+
+    return samples
+
+
 def record_trans_stats(samples):
     j_pre = []
     p_pre = []
