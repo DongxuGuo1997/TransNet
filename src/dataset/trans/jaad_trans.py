@@ -192,6 +192,10 @@ class JaadTransDataset:
         assert image_set in ['train', 'test', 'val', "all"], " Name should be train, test, val or all"
         self.dataset = build_pedb_dataset_jaad(jaad_anns_path, split_vids_path, image_set, subset, verbose)
         self.name = image_set
+        self.subset = subset
+
+    def __repr__(self):
+        return f"JaadTransDataset(image_set={self.name}, subset={self.subset})"
 
     def extract_trans_frame(self, mode="GO", frame_ahead=0, fps=30, verbose=False) -> dict:
         dataset = self.dataset
@@ -242,7 +246,7 @@ class JaadTransDataset:
 
         return samples
 
-    def extract_trans_history(self, mode="GO", fps=30, max_frames=None, verbose=False) -> dict:
+    def extract_trans_history(self, mode="GO", fps=30, max_frames=None, post_frames=0, verbose=False) -> dict:
         """
         Extract the whole history of pedestrian up to the frame when transition happens
         :params: mode: target transition type, "GO" or "STOP"
@@ -296,6 +300,7 @@ class JaadTransDataset:
                         t = None
                     else:
                         t = i - max_frames * step if (i - max_frames * step >= 0) else None
+                    i = i + min(post_frames, d_pos) * step
                     samples[key] = {}
                     samples[key]["source"] = "JAAD"
                     samples[key]["old_id"] = old_id
@@ -330,7 +335,6 @@ class JaadTransDataset:
         assert isinstance(step, int)
         jw = 0
         js = 0
-        t = max_frames * step if max_frames is not None else None
         for idx in ids:
             vid_id = copy.deepcopy(dataset[idx]['video_number'])
             frames = copy.deepcopy(dataset[idx]['frames'])
@@ -352,14 +356,21 @@ class JaadTransDataset:
                 key = "JN_" + new_id
                 old_id = idx
                 action_type = 'standing'
+            if max_frames is None:
+                t = None
+            else:
+                t = len(frames) - max_frames * step if (len(frames) - max_frames * step >= 0) else None
             if key is not None:
                 samples[action_type][key] = {}
                 samples[action_type][key]["source"] = "JAAD"
                 samples[action_type][key]["old_id"] = old_id
                 samples[action_type][key]['video_number'] = vid_id
-                samples[action_type][key]['frame'] = frames[:t:step]
-                samples[action_type][key]['bbox'] = bbox[:t:step]
-                samples[action_type][key]['action'] = action[:t:step]
+                samples[action_type][key]['frame'] = frames[-1:t:-step]
+                samples[action_type][key]['frame'].reverse()
+                samples[action_type][key]['bbox'] = bbox[-1:t:-step]
+                samples[action_type][key]['bbox'].reverse()
+                samples[action_type][key]['action'] = action[-1:t:-step]
+                samples[action_type][key]['action'].reverse()
                 samples[action_type][key]['action_type'] = action_type
                 samples[action_type][key]['fps'] = fps
         samples_new = {'walking': {}, 'standing': {}}
@@ -386,7 +397,7 @@ class JaadTransDataset:
                 pid_s.append(samples_new['standing'][ks]['old_id'])
                 n_s += len(samples_new['standing'][ks]['frame'])
 
-            print(f"Extract None-transition samples from {self.name} dataset in JAAD :")
+            print(f"Extract Non-transition samples from {self.name} dataset in JAAD :")
             print(f"Walking: {len(pid_w)} samples,  {len(set(pid_w))} unique pedestrians and {n_w} frames.")
             print(f"Standing: {len(pid_s)} samples,  {len(set(pid_s))} unique pedestrians and {n_s} frames.")
 

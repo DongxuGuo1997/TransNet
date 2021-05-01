@@ -1,3 +1,4 @@
+"""Preprocessing input data."""
 import torch
 from abc import ABCMeta, abstractmethod
 from .transforms import *
@@ -60,7 +61,7 @@ class ImageTransform(Preprocess):
 
         return image, anns
 
-    
+
 class DownSizeFrame(Preprocess):
     def __init__(self, width, height):
         self.width = width
@@ -87,3 +88,21 @@ class RandomHflip(Preprocess):
 
         return image, anns
 
+
+class JitterBox(Preprocess):
+    """
+    Change the size of bounding box without processing image.
+    """
+
+    def __init__(self, jitter_ratio=1.0, squarify=True):
+        self.jitter_ratio = jitter_ratio
+        self.squarify = squarify
+
+    def __call__(self, image, anns):
+        bbox = anns['bbox']
+        bbox = jitter_bbox(image, bbox, 'enlarge', self.jitter_ratio)
+        if self.squarify:
+            bbox = squarify_bbox(bbox, 1, image.size[0])
+        anns['bbox'] = list(map(int, bbox[0:4]))
+
+        return image, anns
