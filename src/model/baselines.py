@@ -93,6 +93,10 @@ class Res18CropEncoder(nn.Module):
 
 
 class Res18RoIEncoder(nn.Module):
+    """
+    Image feature encoder based on ResNet-18 backbone with RoI align
+    """
+
     def __init__(self, encoder):
         super(Res18RoIEncoder, self).__init__()
 
@@ -115,36 +119,49 @@ class Res18RoIEncoder(nn.Module):
             fea_dim = embed_seq.shape[-1]
             embed_seq = embed_seq.view(-1, fea_dim)
             x_seq.append(embed_seq)
-
+        # pad feature vector sequences
         x_padded = nn.utils.rnn.pad_sequence(x_seq, batch_first=True, padding_value=0)
 
         return x_padded
 
 
 class DecoderRNN(nn.Module):
-    def __init__(self, embed_dim=1024, h_RNN_layers=1, h_RNN=256, h_FC_dim=128, drop_p=0.2):
+    """
+    RNN decoder for transition prediction (classification task)
+    """
+
+    def __init__(self, RNN_type='LSTM', embed_dim=1024, h_RNN_layers=1, h_RNN=256, h_FC_dim=128, drop_p=0.2):
         super(DecoderRNN, self).__init__()
 
+        assert RNN_type in ['LSTM', 'GRU'], 'Invalid RNN type'
         self.RNN_input_size = embed_dim
         self.h_RNN_layers = h_RNN_layers  # RNN hidden layers
         self.h_RNN = h_RNN  # RNN hidden nodes
         self.h_FC_dim = h_FC_dim
         self.dropout = nn.Dropout(p=drop_p)
-        self.LSTM = nn.LSTM(
-            input_size=self.RNN_input_size,
-            hidden_size=self.h_RNN,
-            num_layers=h_RNN_layers,
-            batch_first=True  # input & output will has batch size as 1s dimension. e.g. (batch, time_step, input_size)
-        )
-
+        if RNN_type == 'LSTM':
+            self.RNN = nn.LSTM(
+                input_size=self.RNN_input_size,
+                hidden_size=self.h_RNN,
+                num_layers=h_RNN_layers,
+                batch_first=True  # input & output have batch size as 1s dimension. e.g. (batch, time_step, input_size)
+            )
+        else:
+            self.RNN = nn.GRU(
+                input_size=self.RNN_input_size,
+                hidden_size=self.h_RNN,
+                num_layers=h_RNN_layers,
+                batch_first=True
+            )
+        # dense layers for classification
         self.fc1 = nn.Linear(self.h_RNN, self.h_FC_dim)
         self.fc2 = nn.Linear(self.h_FC_dim, 1)
         self.act = nn.Sigmoid()
 
     def forward(self, x_3d, x_lengths):
         packed_x_RNN = torch.nn.utils.rnn.pack_padded_sequence(x_3d, x_lengths, batch_first=True, enforce_sorted=False)
-        self.LSTM.flatten_parameters()
-        packed_RNN_out, _ = self.LSTM(packed_x_RNN, None)
+        self.RNN.flatten_parameters()
+        packed_RNN_out, _ = self.RNN(packed_x_RNN, None)
         """ h_n shape (n_layers, batch, hidden_size), h_c shape (n_layers, batch, hidden_size) """
         """ None represents zero initial hidden state. RNN_out has shape=(batch, time_step, output_size) """
 
