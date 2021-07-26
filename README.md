@@ -1,7 +1,7 @@
-# TransNet: Benchmark for Pedestrian Stop & Go Forecasting
+# TRANS: Benchmark for Pedestrian Stop & Go Forecasting
 [![Python 3.8](https://img.shields.io/badge/python-3.8-blue.svg)](https://www.python.org/downloads/release/python-380//)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT) <br>
-This repository contains the code of *TransNet*, our benchmark for studying the pedestrian stop and go behaviors in the context of self-driving. 
+This repository contains the code of *TRANS*, our benchmark for studying the pedestrian stop and go behaviors in the context of self-driving. 
 Walking to standing and standing to walking transitions are specific and relatively rare cases, hence samples are collected from several external datasets and 
 integrated with unified interface.
 
