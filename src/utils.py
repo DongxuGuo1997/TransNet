@@ -84,6 +84,9 @@ def batch_first(anns_list):
 
 
 def bbox_to_pv(bbox_list):
+    """
+    Calculate position-velocity from pedestrain bounding boxes
+    """
     pv_3d = []
     for i in range(len(bbox_list[0])):
         p_1d = []
@@ -98,7 +101,6 @@ def bbox_to_pv(bbox_list):
             # c = abs(-(b[1] + b[3]) / 2 + 1080.0)
             xc = (b[0] + b[2]) / 2
             yc = (b[1] + b[3]) / 2
-
             # compute width, height
             w = abs(b[2] - b[0])
             h = abs(b[3] - b[1])
