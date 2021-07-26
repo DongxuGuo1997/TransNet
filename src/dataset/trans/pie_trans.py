@@ -45,6 +45,35 @@ def get_ped_info_pie(annotations, image_set="all") -> dict:
         ped_info[idx]['occlusion'] = copy.deepcopy(dataset[sid][vid]['ped_annotations'][idx]['occlusion'])
         ped_info[idx]['action'] = copy.deepcopy(dataset[sid][vid]['ped_annotations'][idx]['behavior']['action'])
         ped_info[idx]['cross'] = copy.deepcopy(dataset[sid][vid]['ped_annotations'][idx]['behavior']['cross'])
+        ped_info[idx]['behavior'] = []
+        look = copy.deepcopy(dataset[sid][vid]['ped_annotations'][idx]['behavior']['look'])
+        gesture = copy.deepcopy(dataset[sid][vid]['ped_annotations'][idx]['behavior']['gesture'])
+        for i in range(len(gesture)):
+            beh_vec = [0, 0, 0, 0]
+            beh_vec[0] = ped_info[idx]['action'][i]
+            beh_vec[1] = look[i]
+            hg = gesture[i]
+            if hg == 4:
+                beh_vec[2] = 1  # nod
+            elif hg == 0:
+                beh_vec[3] = 0  # undefined
+            else:
+                beh_vec[3] = 1  # hand gestures
+            ped_info[idx]['behavior'].append(beh_vec)
+
+            # attribute vector
+        atr_vec = [0, 0, 0, 0, 0, 0]
+        atr_vec[0] = dataset[sid][vid]['ped_annotations'][idx]['attributes']['num_lanes']
+        if dataset[sid][vid]['ped_annotations'][idx]['attributes']['intersection'] > 0:
+            atr_vec[1] = 1
+        # atr_vec[2] = dataset[sid][vid]['ped_annotations'][idx]['attributes']['designated']
+        if dataset[sid][vid]['ped_annotations'][idx]['attributes']['signalized'] > 0:
+            atr_vec[3] = 1
+        atr_vec[4] = dataset[sid][vid]['ped_annotations'][idx]['attributes']['traffic_direction']
+        # atr_vec[5] = dataset[sid][vid]['ped_annotations'][idx]['attributes']['motion_direction']
+        ped_info[idx]['attributes'] = copy.deepcopy(atr_vec)
+
+        # process traffic light
 
     return ped_info
 
@@ -78,12 +107,15 @@ def ped_info_clean_pie(annotations, image_set="all") -> dict:
             ped_info[idx]['action'][full_occ[i]] = None
             ped_info[idx]['occlusion'][full_occ[i]] = None
             ped_info[idx]['cross'][full_occ[i]] = None
+            ped_info[idx]['behavior'][full_occ[i]] = None
+
         # filter all None values
         ped_info[idx]['frames'] = list(filter(filter_None, ped_info[idx]['frames']))
         ped_info[idx]['bbox'] = list(filter(filter_None, ped_info[idx]['bbox']))
         ped_info[idx]['action'] = list(filter(filter_None, ped_info[idx]['action']))
         ped_info[idx]['occlusion'] = list(filter(filter_None, ped_info[idx]['occlusion']))
         ped_info[idx]['cross'] = list(filter(filter_None, ped_info[idx]['cross']))
+        ped_info[idx]['behavior'] = list(filter(filter_None, ped_info[idx]['behavior']))
 
     return ped_info
 
@@ -171,6 +203,8 @@ class PieTransDataset:
             bbox = copy.deepcopy(dataset[idx]['bbox'])
             action = copy.deepcopy(dataset[idx]['action'])
             cross = copy.deepcopy(dataset[idx]['cross'])
+            behavior = copy.deepcopy(dataset[idx]['behavior'])
+            attributes = copy.deepcopy(dataset[idx]['attributes'])
             next_transition = copy.deepcopy(dataset[idx]["next_transition"])
             for i in range(len(frames)):
                 key = None
@@ -195,10 +229,12 @@ class PieTransDataset:
                     samples[key]['set_number'] = sid
                     samples[key]['video_number'] = vid
                     samples[key]["old_id"] = old_id
-                    samples[key]['frame'] = frames[i-t_ahead]
-                    samples[key]['bbox'] = bbox[i-t_ahead]
-                    samples[key]['action'] = action[i-t_ahead]
-                    samples[key]['cross'] = cross[i-t_ahead]
+                    samples[key]['frame'] = frames[i - t_ahead]
+                    samples[key]['bbox'] = bbox[i - t_ahead]
+                    samples[key]['action'] = action[i - t_ahead]
+                    samples[key]['cross'] = cross[i - t_ahead]
+                    samples[key]['behavior'] = behavior[i - t_ahead]
+                    samples[key]['attributes'] = attributes
                     samples[key]['frame_ahead'] = frame_ahead
                     samples[key]['type'] = mode
                     samples[key]['fps'] = fps
@@ -227,6 +263,8 @@ class PieTransDataset:
             frames = copy.deepcopy(dataset[idx]['frames'])
             bbox = copy.deepcopy(dataset[idx]['bbox'])
             action = copy.deepcopy(dataset[idx]['action'])
+            behavior = copy.deepcopy(dataset[idx]['behavior'])
+            attributes = copy.deepcopy(dataset[idx]['attributes'])
             next_transition = copy.deepcopy(dataset[idx]["next_transition"])
             for i in range(len(frames)):
                 key = None
@@ -274,6 +312,9 @@ class PieTransDataset:
                     samples[key]['bbox'].reverse()
                     samples[key]['action'] = action[i:t:-step]
                     samples[key]['action'].reverse()
+                    samples[key]['behavior'] = behavior[i:t:-step]
+                    samples[key]['behavior'].reverse()
+                    samples[key]['attributes'] = attributes
                     samples[key]['pre_state'] = d_pre
                     samples[key]['post_state'] = d_pos
                     samples[key]['type'] = mode
@@ -304,6 +345,8 @@ class PieTransDataset:
             frames = copy.deepcopy(dataset[idx]['frames'])
             bbox = copy.deepcopy(dataset[idx]['bbox'])
             action = copy.deepcopy(dataset[idx]['action'])
+            behavior = copy.deepcopy(dataset[idx]['behavior'])
+            attributes = copy.deepcopy(dataset[idx]['attributes'])
             a = np.array(action)  # action array
             key = None
             action_type = None
@@ -336,6 +379,9 @@ class PieTransDataset:
                 samples[action_type][key]['bbox'].reverse()
                 samples[action_type][key]['action'] = action[-1:t:-step]
                 samples[action_type][key]['action'].reverse()
+                samples[action_type][key]['behavior'] = behavior[-1:t:-step]
+                samples[action_type][key]['behavior'].reverse()
+                samples[action_type][key]['attributes'] = attributes
                 samples[action_type][key]['action_type'] = action_type
                 samples[action_type][key]['fps'] = fps
 

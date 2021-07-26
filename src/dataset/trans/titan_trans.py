@@ -51,6 +51,7 @@ def get_ped_info_titan(anns_dir, vids) -> dict:
             ped_info[vid][idx]["frames"] = []
             ped_info[vid][idx]["bbox"] = []
             ped_info[vid][idx]["action"] = []
+            ped_info[vid][idx]['behavior'] = []
             # anns[vid][idx]["cross"] = []
             for j in range(flag, len(ped_info_raw)):
                 if ped_info_raw[j][1] == pids[i]:
@@ -63,10 +64,12 @@ def get_ped_info_titan(anns_dir, vids) -> dict:
                     ped_info[vid][idx]['frames'].append(t)
                     ped_info[vid][idx]['bbox'].append(box)
                     ped_info[vid][idx]['action'].append(action)
+                    ped_info[vid][idx]['behavior'].append([-1, -1, -1, -1])
                 else:
                     flag += len(ped_info[vid][idx]["frames"])
                     break
             ped_info[vid][idx]['old_id'] = vid + f'_{pids[i]}'
+            ped_info[vid][idx]['attributes'] = [-1, -1, -1, -1, -1, -1]
 
     return ped_info
 
@@ -83,6 +86,7 @@ def convert_anns_titan(anns_dir, vids) -> dict:
             anns[idx]["frames"] = []
             anns[idx]["bbox"] = []
             anns[idx]["action"] = []
+            anns[idx]['behavior'] = []
             # anns[vid][idx]["cross"] = []
             for j in range(flag, len(ped_info_raw)):
                 if ped_info_raw[j][1] == pids[i]:
@@ -100,6 +104,7 @@ def convert_anns_titan(anns_dir, vids) -> dict:
                     anns[idx]['frames'].append(t)
                     anns[idx]['bbox'].append(box)
                     anns[idx]['action'].append(action)
+                    anns[idx]['behavior'].append([-1, -1, -1, -1])
                 else:
                     flag += len(anns[idx]["frames"])
                     break
@@ -114,7 +119,9 @@ def convert_anns_titan(anns_dir, vids) -> dict:
                 anns_new[k]['bbox'] = anns[k]['bbox']
                 anns_new[k]['action'] = anns[k]['action']
                 anns_new[k]['old_id'] = anns[k]['old_id']
+                anns_new[k]['behavior'] = anns[k]['behavior']
                 anns_new[k]['video_number'] = anns[k]['video_number']
+                anns_new[k]['attributes'] = [-1, -1, -1, -1, -1, -1]
 
     return anns_new
 
@@ -200,6 +207,8 @@ class TitanTransDataset:
             bbox = copy.deepcopy(dataset[idx]['bbox'])
             action = copy.deepcopy(dataset[idx]['action'])
             next_transition = copy.deepcopy(dataset[idx]["next_transition"])
+            behavior = copy.deepcopy(dataset[idx]['behavior'])
+            attributes = copy.deepcopy(dataset[idx]['attributes'])
             for i in range(len(frames)):
                 key = None
                 if mode == "GO":
@@ -222,6 +231,8 @@ class TitanTransDataset:
                     samples[key]['frame'] = frames[i - t_ahead]
                     samples[key]['bbox'] = bbox[i - t_ahead]
                     samples[key]['action'] = action[i - t_ahead]
+                    samples[key]['behavior'] = [-1, -1, -1, -1]
+                    samples[key]['attributes'] = [-1, -1, -1, -1, -1, -1]
                     samples[key]['frame_ahead'] = frame_ahead
                     samples[key]['type'] = mode
                     samples[key]['fps'] = fps
@@ -249,6 +260,7 @@ class TitanTransDataset:
             frames = copy.deepcopy(dataset[idx]['frames'])
             bbox = copy.deepcopy(dataset[idx]['bbox'])
             action = copy.deepcopy(dataset[idx]['action'])
+            behavior = copy.deepcopy(dataset[idx]['behavior'])
             # old_id = copy.deepcopy(dataset[idx]['old_id'])
             # cross = copy.deepcopy(dataset[idx]['cross'])
             next_transition = copy.deepcopy(dataset[idx]["next_transition"])
@@ -294,10 +306,13 @@ class TitanTransDataset:
                     samples[key]['bbox'].reverse()
                     samples[key]['action'] = action[i:t:-step]
                     samples[key]['action'].reverse()
+                    samples[key]['behavior'] = behavior[i:t:-step]
+                    samples[key]['attributes'] = [-1, -1, -1, -1, -1, -1]
                     samples[key]['pre_state'] = d_pre
                     samples[key]['post_state'] = d_pos
                     samples[key]['type'] = mode
                     samples[key]['fps'] = fps
+
         if verbose:
             keys = list(samples.keys())
             pids = []
@@ -325,6 +340,7 @@ class TitanTransDataset:
             frames = copy.deepcopy(dataset[idx]['frames'])
             bbox = copy.deepcopy(dataset[idx]['bbox'])
             action = copy.deepcopy(dataset[idx]['action'])
+            behavior = copy.deepcopy(dataset[idx]['behavior'])
             a = np.array(action)  # action array
             key = None
             action_type = None
@@ -356,6 +372,8 @@ class TitanTransDataset:
                 samples[action_type][key]['bbox'].reverse()
                 samples[action_type][key]['action'] = action[-1:t:-step]
                 samples[action_type][key]['action'].reverse()
+                samples[action_type][key]['behavior'] = behavior[-1:t:-step]
+                samples[action_type][key]['attributes'] = [-1, -1, -1, -1, -1, -1]
                 samples[action_type][key]['action_type'] = action_type
                 samples[action_type][key]['fps'] = fps
         samples_new = {'walking': {}, 'standing': {}}
