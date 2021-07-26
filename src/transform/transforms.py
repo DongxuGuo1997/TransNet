@@ -1,4 +1,6 @@
+"""Transforms for preprocessing images during data loading"""
 import PIL
+import torch
 import copy
 import numpy as np
 
@@ -40,7 +42,7 @@ def img_pad(img, mode='warp', size=224):
         return padded_image
 
 
-def squarify(bbox, squarify_ratio, img_width):
+def squarify_bbox(bbox, squarify_ratio, img_width):
     width = abs(bbox[0] - bbox[2])
     height = abs(bbox[1] - bbox[3])
     width_change = height * squarify_ratio - width
@@ -55,6 +57,7 @@ def squarify(bbox, squarify_ratio, img_width):
         # bbox[1] = str(-float(bbox[3]) + img_dimensions[0])
         bbox[0] = bbox[0] - bbox[2] + img_width
         bbox[2] = img_width
+
     return bbox
 
 
@@ -79,15 +82,15 @@ def bbox_sanity_check(img, bbox):
 def jitter_bbox(img, bbox, mode, ratio):
     """
     This method jitters the position or dimentions of the bounding box.
-    mode: 'same' returns the bounding box
-           unchanged 'enlarge' increases the size of bounding box based on the given ratio.
-           'random_enlarge' increases the size of bounding box by randomly sampling a value in [0,ratio)
-           'move' moves the center of the bounding box in each direction based on the given ratio
-           'random_move' moves the center of the bounding box in each direction by
-                        randomly sampling a value in [-ratio,ratio)
-    ratio: The ratio of change relative to the size of the bounding box.
-    For modes 'enlarge' and 'random_enlarge' the absolute value is considered.
-    Note: Tha ratio of change in pixels is  calculated according to the smaller dimension of the bounding box.
+    mode: 'same' returns the bounding box unchanged
+          'enlarge' increases the size of bounding box based on the given ratio.
+          'random_enlarge' increases the size of bounding box by randomly sampling a value in [0,ratio)
+          'move' moves the center of the bounding box in each direction based on the given ratio
+          'random_move' moves the center of the bounding box in each direction
+          by randomly sampling a value in [-ratio,ratio)
+    ratio: The ratio of change relative to the size of the bounding box. For modes 'enlarge' and 'random_enlarge'
+           the absolute value is considered.
+    Note: Tha ratio of change in pixels is calculated according to the smaller dimension of the bounding box.
     """
     assert (mode in ['same', 'enlarge', 'move', 'random_enlarge', 'random_move']), \
         'mode %s is invalid.' % mode
@@ -138,7 +141,10 @@ def jitter_bbox(img, bbox, mode, ratio):
 
 
 def crop_and_rescale(image, bbox, cropping_ratio, width, height):
-    # crop the top 1/3 of image
+    """
+    Crop the top 1/n of the image and resize the image to desired size.
+    The bbox are preprocessed accordingly.
+    """
     w, h = image.size
     image = image.crop((0, h * cropping_ratio, w, h))
     # rescale
@@ -156,6 +162,11 @@ def crop_and_rescale(image, bbox, cropping_ratio, width, height):
 
 
 def random_flip(image, bbox, probability):
+    """
+    Flip the image horizontally with given probability.
+    When the image is flipped,
+    the bbox annotation wll also be transformed correspondingly.
+    """
     if float(torch.rand(1).item()) < probability:
         image = image.transpose(PIL.Image.FLIP_LEFT_RIGHT)
         w, h = image.size

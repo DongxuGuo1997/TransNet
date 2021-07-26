@@ -91,7 +91,12 @@ def convert_anns_titan(anns_dir, vids) -> dict:
                     # box = list([ele[3], ele[2], ele[3] + ele[5], ele[2] + ele[4]])
                     box = list(map(round, [ele[3], ele[2], ele[3] + ele[5], ele[2] + ele[4]]))
                     box = list(map(float, box))
-                    action = 1 if ele[6] in ["walking", 'running'] else 0
+                    if ele[6] in ["walking", 'running']:
+                        action = 1
+                    elif ele[6] in ["standing"]:
+                        action = 0
+                    else:
+                        action = -1
                     anns[idx]['frames'].append(t)
                     anns[idx]['bbox'].append(box)
                     anns[idx]['action'].append(action)
@@ -178,6 +183,9 @@ class TitanTransDataset:
         self.dataset = build_ped_dataset_titan(anns_dir, split_vids_path, image_set, verbose)
         self.name = image_set
 
+    def __repr__(self):
+        return f"TitanTransDataset(image_set={self.name})"
+
     def extract_trans_frame(self, mode="GO", frame_ahead=0, fps=10, verbose=False) -> dict:
         dataset = self.dataset
         assert mode in ["GO", "STOP"], "Transition type should be STOP or GO"
@@ -191,8 +199,6 @@ class TitanTransDataset:
             frames = copy.deepcopy(dataset[idx]['frames'])
             bbox = copy.deepcopy(dataset[idx]['bbox'])
             action = copy.deepcopy(dataset[idx]['action'])
-            # old_id = copy.deepcopy(dataset[idx]['old_id'])
-            # cross = copy.deepcopy(dataset[idx]['cross'])
             next_transition = copy.deepcopy(dataset[idx]["next_transition"])
             for i in range(len(frames)):
                 key = None
@@ -224,7 +230,7 @@ class TitanTransDataset:
 
         return samples
 
-    def extract_trans_history(self, mode="GO", fps=10, max_frames=None, verbose=False) -> dict:
+    def extract_trans_history(self, mode="GO", fps=10, max_frames=None, post_frames=0, verbose=False) -> dict:
         """
         Extract the whole history of pedestrian up to the frame when transition happens
         :params: mode: target transition type, "GO" or "STOP"
@@ -277,6 +283,7 @@ class TitanTransDataset:
                         t = None
                     else:
                         t = i - max_frames * step if (i - max_frames * step >= 0) else None
+                    i = i + min(post_frames, d_pos) * step
                     samples[key] = {}
                     samples[key]["source"] = "TITAN"
                     samples[key]["old_id"] = old_id
@@ -308,6 +315,7 @@ class TitanTransDataset:
         ids = list(dataset.keys())
         samples = {'walking': {}, 'standing': {}}
         step = 10 // fps
+        h = 5
         assert isinstance(step, int)
         jw = 0
         js = 0
@@ -327,26 +335,33 @@ class TitanTransDataset:
                 key = "TW_" + new_id
                 old_id = idx
                 action_type = 'walking'
-            elif a[a > 0.5].size == 0:  # all standing
+            elif a[a > 0.5].size == 0 and a[a < -0.5].size == 0:  # all standing
                 js += 1
                 new_id = "{:04d}".format(js) + "_" + self.name
                 key = "TN_" + new_id
                 old_id = idx
                 action_type = 'standing'
+            if max_frames is None:
+                t = None
+            else:
+                t = len(frames) - max_frames * step if (len(frames) - max_frames * step >= 0) else None
             if key is not None:
                 samples[action_type][key] = {}
                 samples[action_type][key]["source"] = "TITAN"
                 samples[action_type][key]["old_id"] = old_id
                 samples[action_type][key]['video_number'] = vid_id
-                samples[action_type][key]['frame'] = frames[:t:step]
-                samples[action_type][key]['bbox'] = bbox[:t:step]
-                samples[action_type][key]['action'] = action[:t:step]
+                samples[action_type][key]['frame'] = frames[-1:t:-step]
+                samples[action_type][key]['frame'].reverse()
+                samples[action_type][key]['bbox'] = bbox[-1:t:-step]
+                samples[action_type][key]['bbox'].reverse()
+                samples[action_type][key]['action'] = action[-1:t:-step]
+                samples[action_type][key]['action'].reverse()
                 samples[action_type][key]['action_type'] = action_type
                 samples[action_type][key]['fps'] = fps
         samples_new = {'walking': {}, 'standing': {}}
         if max_samples is not None:
-            keys_w = list(samples['walking'].keys())[:max_samples]
-            keys_s = list(samples['standing'].keys())[:max_samples]
+            keys_w = list(samples['walking'].keys())[:max_samples * h: h]
+            keys_s = list(samples['standing'].keys())[:max_samples * 2: 2]
             for kw in keys_w:
                 samples_new['walking'][kw] = samples['walking'][kw]
             for ks in keys_s:
@@ -368,7 +383,7 @@ class TitanTransDataset:
                 pid_s.append(samples_new['standing'][ks]['old_id'])
                 n_s += len(samples_new['standing'][ks]['frame'])
 
-            print(f"Extract None-transition samples from {self.name} dataset in TITAN :")
+            print(f"Extract Non-transition samples from {self.name} dataset in TITAN :")
             print(f"Walking: {len(pid_w)} samples,  {len(set(pid_w))} unique pedestrians and {n_w} frames.")
             print(f"Standing: {len(pid_s)} samples,  {len(set(pid_s))} unique pedestrians and {n_s} frames.")
 

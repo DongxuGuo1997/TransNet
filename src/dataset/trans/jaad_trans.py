@@ -58,11 +58,19 @@ def get_pedb_info_jaad(annotations, vid):
         pedb_info[idx]['occlusion'] = []
         pedb_info[idx]['action'] = []
         pedb_info[idx]['cross'] = []
+        # process atomic behavior label
+        pedb_info[idx]['behavior'] = []
+        pedb_info[idx]['traffic_light'] = []
         frames = copy.deepcopy(dataset[vid]['ped_annotations'][idx]['frames'])
         bbox = copy.deepcopy(dataset[vid]['ped_annotations'][idx]['bbox'])
         occlusion = copy.deepcopy(dataset[vid]['ped_annotations'][idx]['occlusion'])
         action = copy.deepcopy(dataset[vid]['ped_annotations'][idx]['behavior']['action'])
         cross = copy.deepcopy(dataset[vid]['ped_annotations'][idx]['behavior']['cross'])
+        nod = copy.deepcopy(dataset[vid]['ped_annotations'][idx]['behavior']['nod'])
+        look = copy.deepcopy(dataset[vid]['ped_annotations'][idx]['behavior']['look'])
+        hand_gesture = copy.deepcopy(dataset[vid]['ped_annotations'][idx]['behavior']['hand_gesture'])
+
+
         for i in range(len(frames)):
             if action[i] in [0, 1]:  # sanity check if behavior label exists
                 pedb_info[idx]['action'].append(action[i])
@@ -70,6 +78,31 @@ def get_pedb_info_jaad(annotations, vid):
                 pedb_info[idx]['bbox'].append(bbox[i])
                 pedb_info[idx]['occlusion'].append(occlusion[i])
                 pedb_info[idx]['cross'].append(cross[i])
+                beh_vec = [0, 0, 0, 0, 0, 0]
+                beh_vec[0] = action[i]
+                beh_vec[1] = nod[i]
+                beh_vec[2] = look[i]
+                hg = hand_gesture[i]
+                if hg == 1:
+                    beh_vec[3] = 1
+                elif hg == 2:
+                    beh_vec[4] = 1
+                elif hg == 3:
+                    beh_vec[5] = 1
+                pedb_info[idx]['behavior'].append(beh_vec)
+                # traffic light
+                pedb_info[idx]['traffic_light'].append(dataset[vid]['traffic_annotations'][frames[i]]['traffic_light'])
+
+
+        atr_vec = [0, 0, 0, 0, 0, 0]
+        atr_vec[0] = dataset[vid]['ped_annotations'][idx]['attributes']['num_lanes']
+        atr_vec[1] = dataset[vid]['ped_annotations'][idx]['attributes']['intersection']
+        atr_vec[2] = dataset[vid]['ped_annotations'][idx]['attributes']['designated']
+        if dataset[vid]['ped_annotations'][idx]['attributes']['signalized'] > 0:
+            atr_vec[3] = 1
+        atr_vec[4] = dataset[vid]['ped_annotations'][idx]['attributes']['traffic_direction']
+        atr_vec[5] = dataset[vid]['ped_annotations'][idx]['attributes']['motion_direction']
+        pedb_info[idx]['attributes'] = copy.deepcopy(atr_vec)
 
     return pedb_info
 
@@ -103,12 +136,17 @@ def pedb_info_clean_jaad(annotations, vid) -> dict:
             pedb_info[idx]['action'][full_occ[i]] = None
             pedb_info[idx]['occlusion'][full_occ[i]] = None
             pedb_info[idx]['cross'][full_occ[i]] = None
+            pedb_info[idx]['behavior'][full_occ[i]] = None
+            pedb_info[idx]['traffic_light'][full_occ[i]] = None
+
         # filter all None values
         pedb_info[idx]['frames'] = list(filter(filter_None, pedb_info[idx]['frames']))
         pedb_info[idx]['bbox'] = list(filter(filter_None, pedb_info[idx]['bbox']))
         pedb_info[idx]['action'] = list(filter(filter_None, pedb_info[idx]['action']))
         pedb_info[idx]['occlusion'] = list(filter(filter_None, pedb_info[idx]['occlusion']))
         pedb_info[idx]['cross'] = list(filter(filter_None, pedb_info[idx]['cross']))
+        pedb_info[idx]['behavior'] = list(filter(filter_None, pedb_info[idx]['behavior']))
+        pedb_info[idx]['traffic_light'] = list(filter(filter_None, pedb_info[idx]['traffic_light']))
 
     return pedb_info
 
@@ -177,6 +215,9 @@ def build_pedb_dataset_jaad(jaad_anns_path, split_vids_path, image_set="all", su
                 pedb_dataset[idx]['action'] = pedb_info[idx]['action']
                 pedb_dataset[idx]['occlusion'] = pedb_info[idx]['occlusion']
                 pedb_dataset[idx]["cross"] = pedb_info[idx]["cross"]
+                pedb_dataset[idx]["behavior"] = pedb_info[idx]["behavior"]
+                pedb_dataset[idx]["attributes"] = pedb_info[idx]["attributes"]
+                pedb_dataset[idx]["traffic_light"] = pedb_info[idx]["traffic_light"]
 
     add_trans_label_jaad(pedb_dataset, verbose)
 
@@ -192,6 +233,10 @@ class JaadTransDataset:
         assert image_set in ['train', 'test', 'val', "all"], " Name should be train, test, val or all"
         self.dataset = build_pedb_dataset_jaad(jaad_anns_path, split_vids_path, image_set, subset, verbose)
         self.name = image_set
+        self.subset = subset
+
+    def __repr__(self):
+        return f"JaadTransDataset(image_set={self.name}, subset={self.subset})"
 
     def extract_trans_frame(self, mode="GO", frame_ahead=0, fps=30, verbose=False) -> dict:
         dataset = self.dataset
@@ -207,6 +252,9 @@ class JaadTransDataset:
             bbox = copy.deepcopy(dataset[idx]['bbox'])
             action = copy.deepcopy(dataset[idx]['action'])
             cross = copy.deepcopy(dataset[idx]['cross'])
+            behavior = copy.deepcopy(dataset[idx]['behavior'])
+            traffic_light = copy.deepcopy(dataset[idx]['traffic_light'])
+            attributes = copy.deepcopy(dataset[idx]['attributes'])
             next_transition = copy.deepcopy(dataset[idx]["next_transition"])
             for i in range(len(frames)):
                 key = None
@@ -234,6 +282,9 @@ class JaadTransDataset:
                     samples[key]['bbox'] = bbox[i - t_ahead]
                     samples[key]['action'] = action[i - t_ahead]
                     samples[key]['cross'] = cross[i - t_ahead]
+                    samples[key]['behavior'] = behavior[i - t_ahead]
+                    samples[key]['traffic_light'] = traffic_light[i - t_ahead]
+                    samples[key]['attributes'] = attributes
                     samples[key]['frame_ahead'] = frame_ahead
                     samples[key]['type'] = mode
                     samples[key]['fps'] = fps
@@ -242,7 +293,7 @@ class JaadTransDataset:
 
         return samples
 
-    def extract_trans_history(self, mode="GO", fps=30, max_frames=None, verbose=False) -> dict:
+    def extract_trans_history(self, mode="GO", fps=30, max_frames=None, post_frames=0, verbose=False) -> dict:
         """
         Extract the whole history of pedestrian up to the frame when transition happens
         :params: mode: target transition type, "GO" or "STOP"
@@ -261,6 +312,10 @@ class JaadTransDataset:
             frames = copy.deepcopy(dataset[idx]['frames'])
             bbox = copy.deepcopy(dataset[idx]['bbox'])
             action = copy.deepcopy(dataset[idx]['action'])
+            cross = copy.deepcopy(dataset[idx]['cross'])
+            behavior = copy.deepcopy(dataset[idx]['behavior'])
+            traffic_light = copy.deepcopy(dataset[idx]['traffic_light'])
+            attributes = copy.deepcopy(dataset[idx]['attributes'])
             next_transition = copy.deepcopy(dataset[idx]["next_transition"])
             for i in range(len(frames)):
                 key = None
@@ -296,6 +351,7 @@ class JaadTransDataset:
                         t = None
                     else:
                         t = i - max_frames * step if (i - max_frames * step >= 0) else None
+                    i = i + min(post_frames, d_pos) * step
                     samples[key] = {}
                     samples[key]["source"] = "JAAD"
                     samples[key]["old_id"] = old_id
@@ -306,6 +362,13 @@ class JaadTransDataset:
                     samples[key]['bbox'].reverse()
                     samples[key]['action'] = action[i:t:-step]
                     samples[key]['action'].reverse()
+                    samples[key]['cross'] = cross[i:t:-step]
+                    samples[key]['cross'].reverse()
+                    samples[key]['behavior'] = behavior[i:t:-step]
+                    samples[key]['behavior'].reverse()
+                    samples[key]['traffic_light'] = traffic_light[i:t:-step]
+                    samples[key]['traffic_light'].reverse()
+                    samples[key]['attributes'] = attributes
                     samples[key]['pre_state'] = d_pre
                     samples[key]['post_state'] = d_pos
                     samples[key]['type'] = mode
@@ -330,12 +393,15 @@ class JaadTransDataset:
         assert isinstance(step, int)
         jw = 0
         js = 0
-        t = max_frames * step if max_frames is not None else None
         for idx in ids:
             vid_id = copy.deepcopy(dataset[idx]['video_number'])
             frames = copy.deepcopy(dataset[idx]['frames'])
             bbox = copy.deepcopy(dataset[idx]['bbox'])
             action = copy.deepcopy(dataset[idx]['action'])
+            cross = copy.deepcopy(dataset[idx]['cross'])
+            behavior = copy.deepcopy(dataset[idx]['behavior'])
+            attributes = copy.deepcopy(dataset[idx]['attributes'])
+            traffic_light = copy.deepcopy(dataset[idx]['traffic_light'])
             a = np.array(action)  # action array
             key = None
             action_type = None
@@ -352,16 +418,31 @@ class JaadTransDataset:
                 key = "JN_" + new_id
                 old_id = idx
                 action_type = 'standing'
+            if max_frames is None:
+                t = None
+            else:
+                t = len(frames) - max_frames * step if (len(frames) - max_frames * step >= 0) else None
             if key is not None:
                 samples[action_type][key] = {}
                 samples[action_type][key]["source"] = "JAAD"
                 samples[action_type][key]["old_id"] = old_id
                 samples[action_type][key]['video_number'] = vid_id
-                samples[action_type][key]['frame'] = frames[:t:step]
-                samples[action_type][key]['bbox'] = bbox[:t:step]
-                samples[action_type][key]['action'] = action[:t:step]
+                samples[action_type][key]['frame'] = frames[-1:t:-step]
+                samples[action_type][key]['frame'].reverse()
+                samples[action_type][key]['bbox'] = bbox[-1:t:-step]
+                samples[action_type][key]['bbox'].reverse()
+                samples[action_type][key]['action'] = action[-1:t:-step]
+                samples[action_type][key]['action'].reverse()
+                samples[action_type][key]['cross'] = cross[-1:t:-step]
+                samples[action_type][key]['cross'].reverse()
+                samples[action_type][key]['behavior'] = behavior[-1:t:-step]
+                samples[action_type][key]['behavior'].reverse()
+                samples[action_type][key]['traffic_light'] = traffic_light[-1:t:-step]
+                samples[action_type][key]['traffic_light'].reverse()
+                samples[action_type][key]['attributes'] = attributes
                 samples[action_type][key]['action_type'] = action_type
                 samples[action_type][key]['fps'] = fps
+
         samples_new = {'walking': {}, 'standing': {}}
         if max_samples is not None:
             keys_w = list(samples['walking'].keys())[:max_samples]
@@ -386,7 +467,7 @@ class JaadTransDataset:
                 pid_s.append(samples_new['standing'][ks]['old_id'])
                 n_s += len(samples_new['standing'][ks]['frame'])
 
-            print(f"Extract None-transition samples from {self.name} dataset in JAAD :")
+            print(f"Extract Non-transition samples from {self.name} dataset in JAAD :")
             print(f"Walking: {len(pid_w)} samples,  {len(set(pid_w))} unique pedestrians and {n_w} frames.")
             print(f"Standing: {len(pid_s)} samples,  {len(set(pid_s))} unique pedestrians and {n_s} frames.")
 
