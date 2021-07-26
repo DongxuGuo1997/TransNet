@@ -70,7 +70,6 @@ def get_pedb_info_jaad(annotations, vid):
         look = copy.deepcopy(dataset[vid]['ped_annotations'][idx]['behavior']['look'])
         hand_gesture = copy.deepcopy(dataset[vid]['ped_annotations'][idx]['behavior']['hand_gesture'])
 
-
         for i in range(len(frames)):
             if action[i] in [0, 1]:  # sanity check if behavior label exists
                 pedb_info[idx]['action'].append(action[i])
@@ -78,22 +77,18 @@ def get_pedb_info_jaad(annotations, vid):
                 pedb_info[idx]['bbox'].append(bbox[i])
                 pedb_info[idx]['occlusion'].append(occlusion[i])
                 pedb_info[idx]['cross'].append(cross[i])
-                beh_vec = [0, 0, 0, 0, 0, 0]
+                beh_vec = [0, 0, 0, 0]
                 beh_vec[0] = action[i]
-                beh_vec[1] = nod[i]
-                beh_vec[2] = look[i]
+                beh_vec[1] = look[i]
+                beh_vec[2] = nod[i]
                 hg = hand_gesture[i]
-                if hg == 1:
+                if hg > 0:
                     beh_vec[3] = 1
-                elif hg == 2:
-                    beh_vec[4] = 1
-                elif hg == 3:
-                    beh_vec[5] = 1
                 pedb_info[idx]['behavior'].append(beh_vec)
                 # traffic light
                 pedb_info[idx]['traffic_light'].append(dataset[vid]['traffic_annotations'][frames[i]]['traffic_light'])
 
-
+        # attribute vector
         atr_vec = [0, 0, 0, 0, 0, 0]
         atr_vec[0] = dataset[vid]['ped_annotations'][idx]['attributes']['num_lanes']
         atr_vec[1] = dataset[vid]['ped_annotations'][idx]['attributes']['intersection']
